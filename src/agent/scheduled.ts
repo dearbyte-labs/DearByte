@@ -159,7 +159,7 @@ export async function runMorningBrief(d: ScheduledDeps, o: { force?: boolean } =
     "morning_brief",
     `${SCHEDULED}\nWrite the user's morning brief. Check their sleep and vitals with your tools, ${d.calendar ? "today's calendar, " : ""}and memory for anything happening today. ${
       triggers.length ? `These checks fired, so lead with them:\n${firedLines(triggers)}\n` : "No caution checks fired.\n"
-    }Format: 3-6 short lines, plain text. Sleep against their usual first, then anything worth watching${d.calendar ? " (including what's on today)" : ""}, then one suggestion for the day.`,
+    }Format: 3-6 short lines, plain text. Sleep against their usual first, then anything worth watching${d.calendar ? " (including what's on today)" : ""}, then one suggestion for the day. State only what the tool results show: no streaks, trends or "usual" the data doesn't cover (with one night recorded, there is no pattern yet).`,
     now,
   );
   if (c.text === null) return unwritten(d, now, c, triggers);
