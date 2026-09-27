@@ -1,7 +1,7 @@
 // Channel-independent reply loop: queue incoming messages, merge a burst into
 // one turn, load its photo, ask the responder (the companion, or the agent),
-// and send the bubbles with pauses in between. The WeChat desktop and ClawBot
-// channels both feed it.
+// and send the bubbles with pauses in between. The WeChat desktop, iMessage
+// and ClawBot channels all feed it.
 
 import type { Initiative } from "../companion/companion.ts";
 import { FALLBACK_REPLY } from "../companion/output.ts";
@@ -22,7 +22,7 @@ export type ReplyTurn = {
   memory: Promise<unknown>;
 };
 
-/** Whoever answers: 小拜 the companion, or DearByte's agent (src/agent/wechat.ts). */
+/** Whoever answers: 小拜 the companion, or DearByte's agent (src/agent/messaging.ts). */
 export type Responder = { handle(input: { text: string; image?: ImageInput }): Promise<ReplyTurn> };
 
 export type ReplyEvent =
