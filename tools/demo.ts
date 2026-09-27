@@ -66,7 +66,7 @@ if (typeof config.agentPersona !== "string") fail(config.agentPersona.problem);
 if (config.telegram && "problem" in config.telegram) fail(config.telegram.problem);
 if (config.wallet && "problem" in config.wallet) fail(config.wallet.problem);
 const myWallet = config.wallet && !("problem" in config.wallet) ? config.wallet : null;
-if (testnet && !myWallet) fail("--testnet needs a wallet with test USDC: npm run agent -- wallet new, then the faucet.");
+if (testnet && !myWallet) fail("--testnet needs a wallet with test USDC: npm run dearbyte -- wallet new, then the faucet.");
 if (testnet && !/^0x[0-9a-fA-F]{40}$/.test(process.env.SELLER_PAY_TO?.trim() ?? "")) fail("--testnet needs SELLER_PAY_TO: the address the example seller gets paid at (use a second address you control).");
 
 const realStore = Store.open(config.dbPath);
@@ -216,7 +216,7 @@ function sampleCalendar(now: Date): CalendarSource {
   return { events: async (from, to) => ({ status: "ok", events: events.filter((e) => e.end > from && e.start < to) }) };
 }
 
-/** Your calendar when DearByte may read it (npm run agent -- calendar), otherwise the sample day. */
+/** Your calendar when DearByte may read it (npm run dearbyte -- calendar), otherwise the sample day. */
 async function pickCalendar(): Promise<{ calendar: CalendarSource; live: boolean }> {
   if (!allSample && config.calendar) {
     const mac = new MacCalendar();
@@ -402,7 +402,7 @@ try {
     // Taps left over from earlier takes are dropped, not applied to this run.
     const backlog = await telegram.bot.updates(0, 0);
     if (backlog.length) await telegram.bot.updates(backlog[backlog.length - 1].update_id + 1, 0);
-    console.log(dim("Telegram: stop npm run agent -- watch while the demo runs, or both will answer the same taps."));
+    console.log(dim("Telegram: stop npm run dearbyte -- watch while the demo runs, or both will answer the same taps."));
   }
   await knowsYou();
   await watchesForYou();

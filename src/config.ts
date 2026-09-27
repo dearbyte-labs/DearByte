@@ -118,7 +118,7 @@ function resolveTelegram(token: string | undefined, chat: string | undefined): C
   if (!token) return chat ? { problem: "TELEGRAM_CHAT_ID is set but TELEGRAM_BOT_TOKEN isn't" } : null;
   if (!/^\d+:[\w-]{30,}$/.test(token)) return { problem: "TELEGRAM_BOT_TOKEN doesn't look like a bot token (it should be like 123456:ABC..., from @BotFather)" };
   if (!chat) return { token, chatId: null };
-  return /^-?\d+$/.test(chat) ? { token, chatId: Number(chat) } : { problem: "TELEGRAM_CHAT_ID should be a number (npm run agent -- telegram finds it)" };
+  return /^-?\d+$/.test(chat) ? { token, chatId: Number(chat) } : { problem: "TELEGRAM_CHAT_ID should be a number (npm run dearbyte -- telegram finds it)" };
 }
 
 /** WeChat is where 小拜 has always lived, so the agent speaks as her there. */

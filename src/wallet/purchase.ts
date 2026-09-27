@@ -121,7 +121,7 @@ export function purchaseHandler(d: WalletDeps): ApprovalHandler {
       if (err instanceof PaymentError && err.signatureSent) {
         // The seller holds a signed authorization and may still settle it until it expires, so it stays counted.
         d.store.finishPurchase(reserved.id, { status: "unconfirmed", error: message });
-        return `Not confirmed: ${message}. The seller received a signed ${formatUsd(amount)} authorization and could still settle it within ${MAX_AUTH_SECONDS / 60} minutes, so it counts toward today's limit. Check npm run agent -- wallet.`;
+        return `Not confirmed: ${message}. The seller received a signed ${formatUsd(amount)} authorization and could still settle it within ${MAX_AUTH_SECONDS / 60} minutes, so it counts toward today's limit. Check npm run dearbyte -- wallet.`;
       }
       d.store.finishPurchase(reserved.id, { status: "failed", error: message });
       return `Not paid: ${message}.`;

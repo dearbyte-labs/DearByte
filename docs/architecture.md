@@ -11,7 +11,7 @@ improve next.
 ```mermaid
 flowchart LR
   subgraph You
-    CLI[Terminal<br/>npm run agent]
+    CLI[Terminal<br/>npm run dearbyte -- …]
     TG[Telegram<br/>alerts · 👍/👎 · Approve/Reject]
   end
 
@@ -57,7 +57,7 @@ flowchart LR
 ```
 
 There are two products in one repository (the companion's pipeline is in
-[how-it-works.md](how-it-works.md)). **The agent**, `npm run agent`, is
+[how-it-works.md](how-it-works.md)). **The agent**, `npm run dearbyte -- <command>`, is
 everything above. **The companion** is 小拜, a Chinese chat companion
 (`npm run companion`, `npm run dearbyte` for WeChat). It came first and shares
 the model layer, the store and memory. This page is about the agent.
@@ -101,7 +101,7 @@ reason written next to it.
 | Health | `src/health/` | MCP client for dearbyte-bridge, daily snapshots, a 14-day baseline, caution rules (short sleep, high resting heart rate, low HRV) |
 | Calendar | `src/calendar/`, `native/calendar/` | A small signed app reads EventKit, with its own macOS permission; `get_calendar`; the `hard_event` rule joins a health trigger |
 | Watchlist | `src/watchlist/` | Newsroom RSS and SEC filings; the worker records a verdict per item; the brain writes one message; links come from stored items |
-| Money | `src/finance/` | `finance.json`, FIRE math (`fire.ts`), the `fire_plan` tool, `npm run agent -- fire` |
+| Money | `src/finance/` | `finance.json`, FIRE math (`fire.ts`), the `fire_plan` tool, `npm run dearbyte -- fire` |
 | Wallet | `src/wallet/` | x402 v2 on Base Sepolia: quote → approval → fresh quote → reserve against the daily cap → EIP-3009 signature → receipt |
 | Approvals | `src/agent/approvals.ts`, `src/telegram/inbox.ts` | Pending requests, Approve/Reject from Telegram or the terminal, 15-minute expiry, decided atomically |
 | Telegram | `src/telegram/` | Bot API with long polling; only the configured chat is heard |
@@ -139,7 +139,7 @@ and more channels arrive.
 | # | Improvement | Why | Shape |
 | --- | --- | --- | --- |
 | 1 | **One `watch` at a time, as a service** | Two `watch` processes both send alerts and answer taps; a sleeping or crashed laptop stops everything silently | launchd job with `KeepAlive`; a lock file (reuse `src/lock.ts`); a heartbeat row each tick and a "no health data for 12 hours" alert |
-| 2 | **A report command** | Phase 2's result is measured: precision, coverage, delay, cost, uptime | `npm run agent -- report` from `agent_alerts`, `watch_items`, `agent_usage` and the heartbeat; `/missed` in Telegram |
+| 2 | **A report command** | Phase 2's result is measured: precision, coverage, delay, cost, uptime | `npm run dearbyte -- report` from `agent_alerts`, `watch_items`, `agent_usage` and the heartbeat; `/missed` in Telegram |
 | 3 | **Connectors instead of if-chains** | Each data source is wired separately in `toolset.ts`, `status`, `watch` and the demo. MindGo would be the fourth copy | A `Connector` type: `status()`, `tools()`, optional `rules()` and `brief()` parts. Health, calendar, watchlist, finance and MindGo each become one. `toolset`, `status` and `watch` loop over the list |
 | 4 | **One alert policy** | Quiet hours, daily caps, dedupe and "once a day per rule" live in `scheduled.ts` and again in `watchlist/check.ts`; money rules would add a third | A small policy module: every rule returns triggers, and one place applies quiet hours, caps, dedupe and storage |
 | 5 | **Split `agent-cli.ts`** | 515 lines of wiring plus every command; `tools/demo.ts` repeats the wiring | `src/app.ts` builds the store, models, tools and channels once; `src/commands/*.ts` hold one command each; the demo reuses `app.ts` |

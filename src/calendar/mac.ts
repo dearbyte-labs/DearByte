@@ -48,7 +48,7 @@ const Output = z.object({
 });
 
 const HELP: Record<string, string> = {
-  not_determined: "DearByte hasn't been allowed to read your calendar yet. Run: npm run agent -- calendar",
+  not_determined: "DearByte hasn't been allowed to read your calendar yet. Run: npm run dearbyte -- calendar",
   denied: "Calendar access was turned off. Turn it on in System Settings → Privacy & Security → Calendars, for DearByte Calendar.",
   write_only: "DearByte can only add to your calendar, not read it. Allow full access in System Settings → Privacy & Security → Calendars.",
   restricted: "Calendar access is restricted on this Mac (a device policy).",
@@ -90,7 +90,7 @@ export function ensureCalendarHelper(): string {
     rmSync(join(ROOT, ".build/dearbyte-calendar"), { force: true }); // the plain binary earlier versions built
     return APP;
   } catch {
-    throw (buildFailure = new Error("the calendar helper didn't build (try: npm run agent -- calendar)"));
+    throw (buildFailure = new Error("the calendar helper didn't build (try: npm run dearbyte -- calendar)"));
   }
 }
 

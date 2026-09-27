@@ -3,25 +3,26 @@
 // are set up (health needs HEALTH_MCP_URL). Every model call is logged and
 // counts toward the weekly cap.
 //
-//   npm run agent -- ask "How did I sleep?"
-//   npm run agent -- chat
-//   npm run agent -- status
-//   npm run agent -- brief [--force]   the morning brief now
-//   npm run agent -- check             run the caution rules once
-//   npm run agent -- watch             keep running: brief at 07:30, checks every 15 min
-//   npm run agent -- alerts            what DearByte sent on its own lately
-//   npm run agent -- telegram          set up Telegram, or test it with a sample approval
-//   npm run agent -- calendar          allow calendar access, and list the next 48 hours
-//   npm run agent -- news              check the company watchlist once
-//   npm run agent -- wallet [new]      the testnet wallet: address, balance, limits
-//   npm run agent -- approvals         requests waiting for your yes
-//   npm run agent -- approve|reject N  answer one in the terminal
-//   npm run agent -- wechat [--draft]  talk to the agent in WeChat, in Mandarin
-//   npm run agent -- imessage -m|-e [--to <handle>] [--draft]  talk to it in iMessage, in Mandarin or English
+//   npm run dearbyte -- ask "How did I sleep?"
+//   npm run dearbyte -- chat
+//   npm run dearbyte -- status
+//   npm run dearbyte -- brief [--force]   the morning brief now
+//   npm run dearbyte -- check             run the caution rules once
+//   npm run dearbyte -- watch             keep running: brief at 07:30, checks every 15 min
+//   npm run dearbyte -- alerts            what DearByte sent on its own lately
+//   npm run dearbyte -- telegram          set up Telegram, or test it with a sample approval
+//   npm run dearbyte -- calendar          allow calendar access, and list the next 48 hours
+//   npm run dearbyte -- news              check the company watchlist once
+//   npm run dearbyte -- wallet [new]      the testnet wallet: address, balance, limits
+//   npm run dearbyte -- approvals         requests waiting for your yes
+//   npm run dearbyte -- approve|reject N  answer one in the terminal
+//   npm run dearbyte -- wechat [--draft]  talk to the agent in WeChat, in Mandarin
+//   npm run dearbyte -- imessage -m|-e [--to <handle>] [--draft]  talk to it in iMessage, in Mandarin or English
 
 import { createInterface } from "node:readline/promises";
 import Anthropic from "@anthropic-ai/sdk";
 import { loadConfig, ROOT } from "./config.ts";
+import { isAgentCommand } from "./commands.ts";
 import { dim } from "./console.ts";
 import { localDate } from "./companion/time.ts";
 import { runAgent, type LoopEvent, type LoopResult } from "./agent/loop.ts";
@@ -61,29 +62,29 @@ import { MacCalendar } from "./calendar/mac.ts";
 import { clock } from "./calendar/rules.ts";
 
 const USAGE = `Usage:
-  npm run agent -- ask "question"   answer one question
-  npm run agent -- chat             talk until /quit
-  npm run agent -- status           models, tools, spending
-  npm run agent -- brief [--force]  send the morning brief now
-  npm run agent -- check            run the caution rules once
-  npm run agent -- watch            keep running: brief at 07:30, caution checks every 15 min
-  npm run agent -- alerts           recent briefs and alerts
-  npm run agent -- telegram         set up Telegram, or test it
-  npm run agent -- calendar         allow calendar access, list the next 48 hours
-  npm run agent -- news             check the company watchlist now
-  npm run agent -- fire [--retire N --spend N --save N ...]   your road to financial independence (finance.json)
-  npm run agent -- wallet [new]     the testnet wallet (new: create one)
-  npm run agent -- approvals        requests waiting for your yes
-  npm run agent -- approve N        approve request N (or: reject N)
-  npm run agent -- wechat [--draft] talk to the agent in WeChat, in Mandarin (--draft: never send)
-  npm run agent -- imessage -m|-e [--to <phone or email>] [--draft]
+  npm run dearbyte -- ask "question"   answer one question
+  npm run dearbyte -- chat             talk until /quit
+  npm run dearbyte -- status           models, tools, spending
+  npm run dearbyte -- brief [--force]  send the morning brief now
+  npm run dearbyte -- check            run the caution rules once
+  npm run dearbyte -- watch            keep running: brief at 07:30, caution checks every 15 min
+  npm run dearbyte -- alerts           recent briefs and alerts
+  npm run dearbyte -- telegram         set up Telegram, or test it
+  npm run dearbyte -- calendar         allow calendar access, list the next 48 hours
+  npm run dearbyte -- news             check the company watchlist now
+  npm run dearbyte -- fire [--retire N --spend N --save N ...]   your road to financial independence (finance.json)
+  npm run dearbyte -- wallet [new]     the testnet wallet (new: create one)
+  npm run dearbyte -- approvals        requests waiting for your yes
+  npm run dearbyte -- approve N        approve request N (or: reject N)
+  npm run dearbyte -- wechat [--draft] talk to the agent in WeChat, in Mandarin (--draft: never send)
+  npm run dearbyte -- imessage -m|-e [--to <phone or email>] [--draft]
                                     talk to it in iMessage: -m Mandarin (as 小拜), -e English (the default)`;
 
 const config = loadConfig();
 const [command, ...rest] = process.argv.slice(2);
-if (!["ask", "chat", "status", "brief", "check", "watch", "alerts", "telegram", "calendar", "news", "fire", "wallet", "approvals", "approve", "reject", "wechat", "imessage"].includes(command ?? "")) {
+if (!isAgentCommand(command) || command === "help") {
   console.log(USAGE);
-  process.exit(command ? 1 : 0);
+  process.exit(command && command !== "help" ? 1 : 0);
 }
 if ("problem" in config.agent) fail(config.agent.problem);
 if (typeof config.agentPersona !== "string") fail(config.agentPersona.problem);
@@ -115,7 +116,7 @@ const wallet: WalletDeps | null = config.wallet
       sendApproval: telegram ? async (a) => (await sendApproval(telegram.bot, telegram.chatId, a), true) : undefined,
       // Printed by code, so what you approve is never just the model's retelling.
       announce: (a) => {
-        console.log(`\n── Approval #${a.id} ──\n${approvalText(a)}\nTo answer: /approve ${a.id} or /reject ${a.id} in chat, or npm run agent -- approve ${a.id}\n`);
+        console.log(`\n── Approval #${a.id} ──\n${approvalText(a)}\nTo answer: /approve ${a.id} or /reject ${a.id} in chat, or npm run dearbyte -- approve ${a.id}\n`);
         if (command === "wechat" || command === "imessage") proposed.push(a);
       },
     }
@@ -186,8 +187,8 @@ function status(): void {
   console.log(`Persona: ${persona} (${pack.name} ${pack.version}, ${pack.language}; npm run personas lists them all)`);
   console.log(`Tools:   ${tools.definitions().map((t) => t.name).join(", ")}`);
   console.log(`Health:  ${health ? "connected to dearbyte-bridge (HEALTH_MCP_URL)" : "not set up (add HEALTH_MCP_URL to .env; see dearbyte-bridge docs/SETUP.md)"}`);
-  console.log(`Calendar: ${calendar ? "this Mac's calendars (npm run agent -- calendar to check access)" : "off (DEARBYTE_CALENDAR=off, or not on macOS)"}`);
-  console.log(`Alerts:  ${telegram ? "Telegram, then the terminal" : telegramSetup ? "the terminal (Telegram needs TELEGRAM_CHAT_ID: npm run agent -- telegram)" : "the terminal and macOS notifications (npm run agent -- telegram to set up Telegram)"}`);
+  console.log(`Calendar: ${calendar ? "this Mac's calendars (npm run dearbyte -- calendar to check access)" : "off (DEARBYTE_CALENDAR=off, or not on macOS)"}`);
+  console.log(`Alerts:  ${telegram ? "Telegram, then the terminal" : telegramSetup ? "the terminal (Telegram needs TELEGRAM_CHAT_ID: npm run dearbyte -- telegram)" : "the terminal and macOS notifications (npm run dearbyte -- telegram to set up Telegram)"}`);
   console.log(
     `News:    ${
       watchlist
@@ -195,11 +196,11 @@ function status(): void {
         : "no watchlist (copy watchlist.example.json to watchlist.json)"
     }`,
   );
-  console.log(`Finance: ${finance ? `FIRE plan from finance.json (${finance.currency}) · npm run agent -- fire` : "no profile (copy finance.example.json to finance.json)"}`);
+  console.log(`Finance: ${finance ? `FIRE plan from finance.json (${finance.currency}) · npm run dearbyte -- fire` : "no profile (copy finance.example.json to finance.json)"}`);
   console.log(`Money:   ${money ? "MindGo connected, read-only (MINDGO_MCP_URL)" : "MindGo not connected (add MINDGO_MCP_URL and MINDGO_TOKEN; see docs/agent-guide.md)"}`);
   console.log(
     `Wallet:  ${
-      wallet ? `testnet, ${wallet.wallet.sellers.length} approved seller${wallet.wallet.sellers.length === 1 ? "" : "s"} · npm run agent -- wallet` : "not set up (npm run agent -- wallet new)"
+      wallet ? `testnet, ${wallet.wallet.sellers.length} approved seller${wallet.wallet.sellers.length === 1 ? "" : "s"} · npm run dearbyte -- wallet` : "not set up (npm run dearbyte -- wallet new)"
     }`,
   );
   const fb = store.alertFeedback(new Date(Date.now() - WEEK_MS).toISOString().slice(0, 10));
@@ -226,7 +227,7 @@ const notify: Notify = async (title, body, o = {}) => {
 };
 
 function inboxDeps(): InboxDeps & { bot: TelegramBot } {
-  if (!telegram) fail("Telegram isn't set up: npm run agent -- telegram");
+  if (!telegram) fail("Telegram isn't set up: npm run dearbyte -- telegram");
   return { ...telegram, store, handlers: approvalHandlers };
 }
 
@@ -248,7 +249,7 @@ function reportNews(o: WatchOutcome): void {
 
 function report(o: Outcome): void {
   if (!o.sent) console.log(dim(`nothing sent: ${o.reason}${o.triggers.length ? ` (rules: ${o.triggers.map((t) => t.kind).join(", ")})` : ""}`));
-  else if (!o.delivered) console.log("Written, but delivery failed; it's saved in npm run agent -- alerts.");
+  else if (!o.delivered) console.log("Written, but delivery failed; it's saved in npm run dearbyte -- alerts.");
 }
 
 function listAlerts(): void {
@@ -472,7 +473,7 @@ const TELEGRAM_STEPS = `Telegram setup:
   1. In Telegram, message @BotFather, send /newbot, and follow the steps. It gives you a token.
   2. Add it to .env:  TELEGRAM_BOT_TOKEN=<token>   (keep it secret: whoever has it controls the bot)
   3. Send your new bot any message (for example "hi").
-  4. Run  npm run agent -- telegram  again to find your chat id.`;
+  4. Run  npm run dearbyte -- telegram  again to find your chat id.`;
 
 /** Setup in steps: without a token, the instructions; without a chat id, find it; with both, a live test. */
 async function telegramCommand(): Promise<void> {
@@ -547,7 +548,7 @@ function listApprovals(): void {
     console.log(dim(`#${a.id} · ${a.kind} · expires ${a.expiresAt.slice(11, 16)} UTC`));
     console.log(`${a.summary}\n`);
   }
-  console.log(dim("npm run agent -- approve N, or reject N"));
+  console.log(dim("npm run dearbyte -- approve N, or reject N"));
 }
 
 async function walletCommand(): Promise<void> {
@@ -568,7 +569,7 @@ async function walletCommand(): Promise<void> {
     console.log("Next: get free test USDC at https://faucet.circle.com (network: Base Sepolia), and set DEARBYTE_SELLERS to the sellers you allow.");
     return;
   }
-  if (!wallet) return console.log("No wallet yet: npm run agent -- wallet new");
+  if (!wallet) return console.log("No wallet yet: npm run dearbyte -- wallet new");
   const w = wallet.wallet;
   console.log(`Address:  ${w.address}`);
   console.log("Network:  Base Sepolia (testnet), test USDC");
@@ -610,7 +611,7 @@ async function main(): Promise<void> {
   if (command === "approvals") return listApprovals();
   if (command === "approve" || command === "reject") {
     const id = approvalId(rest[0]);
-    if (id === null) fail(`Which one? npm run agent -- ${command} N (see npm run agent -- approvals)`);
+    if (id === null) fail(`Which one? npm run dearbyte -- ${command} N (see npm run dearbyte -- approvals)`);
     if (command === "approve") {
       const rl = createInterface({ input: process.stdin, output: process.stdout });
       const yes = await confirmApproval(id, (q) => rl.question(q)).finally(() => rl.close());
@@ -645,7 +646,7 @@ async function main(): Promise<void> {
   if (command === "watch") return watch();
   if (command === "ask") {
     const question = rest.join(" ").trim();
-    if (!question) fail('Ask something: npm run agent -- ask "How did I sleep?"');
+    if (!question) fail('Ask something: npm run dearbyte -- ask "How did I sleep?"');
     const result = await turn([], question, "ask");
     process.exitCode = result.stop === "done" || result.text ? 0 : 1;
     return;

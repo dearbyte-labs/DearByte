@@ -154,7 +154,7 @@ test("inbox: only the user's chat counts", async () => {
   expect(store.approval(a.id)?.status).toBe("pending");
 
   await handleUpdate(d, { update_id: 3, message: { message_id: 4, chat: { id: ME }, text: "hi" } });
-  expect(log[0]).toContain("npm run agent -- chat");
+  expect(log[0]).toContain("npm run dearbyte -- chat");
 });
 
 test("inbox: feedback buttons rate the alert; bad buttons are answered, not trusted", async () => {
