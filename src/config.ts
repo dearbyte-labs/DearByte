@@ -33,6 +33,8 @@ export type Config = {
   telegram: { token: string; chatId: number | null } | { problem: string } | null;
   /** The agent's persona pack id (personas/<id>), or what's wrong with DEARBYTE_PERSONA. */
   agentPersona: string | { problem: string };
+  /** The persona the agent uses in WeChat (Mandarin by default), or what's wrong with DEARBYTE_WECHAT_PERSONA. */
+  wechatPersona: string | { problem: string };
   dbPath: string;
   timeZone: string;
   historyMessages: number;
@@ -89,6 +91,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     agent: resolveTiers(merged),
     agentWeeklyCap: nonNegative(merged.DEARBYTE_WEEKLY_CAP, DEFAULT_WEEKLY_CAP),
     agentPersona: resolvePersona(merged.DEARBYTE_PERSONA),
+    wechatPersona: resolvePersona(merged.DEARBYTE_WECHAT_PERSONA || WECHAT_PERSONA, "DEARBYTE_WECHAT_PERSONA"),
     healthMcpUrl: merged.HEALTH_MCP_URL?.trim() || null,
     calendar: process.platform === "darwin" && merged.DEARBYTE_CALENDAR?.trim().toLowerCase() !== "off",
     wallet: resolveWallet(merged),
@@ -115,8 +118,11 @@ function resolveTelegram(token: string | undefined, chat: string | undefined): C
   return /^-?\d+$/.test(chat) ? { token, chatId: Number(chat) } : { problem: "TELEGRAM_CHAT_ID should be a number (npm run agent -- telegram finds it)" };
 }
 
-function resolvePersona(value: string | undefined): string | { problem: string } {
+/** WeChat is where 小拜 has always lived, so the agent speaks as her there. */
+const WECHAT_PERSONA = "xiaobai";
+
+function resolvePersona(value: string | undefined, setting = "DEARBYTE_PERSONA"): string | { problem: string } {
   const name = (value || DEFAULT_PERSONA).trim().toLowerCase();
   const packs = listPersonas(ROOT);
-  return packs.includes(name) ? name : { problem: `DEARBYTE_PERSONA should be one of ${packs.join(", ")} (the folders in personas/)` };
+  return packs.includes(name) ? name : { problem: `${setting} should be one of ${packs.join(", ")} (the folders in personas/)` };
 }

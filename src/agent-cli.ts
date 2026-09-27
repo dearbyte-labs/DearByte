@@ -16,6 +16,7 @@
 //   npm run agent -- wallet [new]      the testnet wallet: address, balance, limits
 //   npm run agent -- approvals         requests waiting for your yes
 //   npm run agent -- approve|reject N  answer one in the terminal
+//   npm run agent -- wechat [--draft]  talk to the agent in WeChat, in Mandarin
 
 import { createInterface } from "node:readline/promises";
 import Anthropic from "@anthropic-ai/sdk";
@@ -25,6 +26,13 @@ import { localDate } from "./companion/time.ts";
 import { runAgent, type LoopEvent, type LoopResult } from "./agent/loop.ts";
 import type { AgentMessage } from "./agent/model.ts";
 import { agentSystemPrompt, loadPack, withCurrentTime } from "./agent/persona.ts";
+import { AgentResponder, WECHAT_NOTE } from "./agent/wechat.ts";
+import { DesktopChannel, type DesktopEvent } from "./channels/desktop/channel.ts";
+import { DesktopHelper } from "./channels/desktop/helper.ts";
+import { loadContacts } from "./contacts.ts";
+import { acquireLock } from "./lock.ts";
+import { spawn } from "node:child_process";
+import type { Approval } from "./storage/store.ts";
 import { createTierModels } from "./agent/tiers.ts";
 import { agentToolset } from "./agent/toolset.ts";
 import { WEEK_MS } from "./agent/usage.ts";
@@ -63,11 +71,12 @@ const USAGE = `Usage:
   npm run agent -- fire [--retire N --spend N --save N ...]   your road to financial independence (finance.json)
   npm run agent -- wallet [new]     the testnet wallet (new: create one)
   npm run agent -- approvals        requests waiting for your yes
-  npm run agent -- approve N        approve request N (or: reject N)`;
+  npm run agent -- approve N        approve request N (or: reject N)
+  npm run agent -- wechat [--draft] talk to the agent in WeChat, in Mandarin (--draft: never send)`;
 
 const config = loadConfig();
 const [command, ...rest] = process.argv.slice(2);
-if (!["ask", "chat", "status", "brief", "check", "watch", "alerts", "telegram", "calendar", "news", "fire", "wallet", "approvals", "approve", "reject"].includes(command ?? "")) {
+if (!["ask", "chat", "status", "brief", "check", "watch", "alerts", "telegram", "calendar", "news", "fire", "wallet", "approvals", "approve", "reject", "wechat"].includes(command ?? "")) {
   console.log(USAGE);
   process.exit(command ? 1 : 0);
 }
@@ -91,6 +100,8 @@ const telegramSetup = config.telegram;
 /** Telegram, once both the token and the chat are known. */
 const telegram = telegramSetup?.chatId ? { bot: new TelegramBot(telegramSetup.token), chatId: telegramSetup.chatId } : null;
 if (config.wallet && "problem" in config.wallet) fail(config.wallet.problem);
+/** Approvals proposed since WeChat last showed them (only the wechat command reads these). */
+const proposed: Approval[] = [];
 const wallet: WalletDeps | null = config.wallet
   ? {
       wallet: config.wallet,
@@ -98,7 +109,10 @@ const wallet: WalletDeps | null = config.wallet
       timeZone: config.timeZone,
       sendApproval: telegram ? async (a) => (await sendApproval(telegram.bot, telegram.chatId, a), true) : undefined,
       // Printed by code, so what you approve is never just the model's retelling.
-      announce: (a) => console.log(`\n── Approval #${a.id} ──\n${approvalText(a)}\nTo answer: /approve ${a.id} or /reject ${a.id} in chat, or npm run agent -- approve ${a.id}\n`),
+      announce: (a) => {
+        console.log(`\n── Approval #${a.id} ──\n${approvalText(a)}\nTo answer: /approve ${a.id} or /reject ${a.id} in chat, or npm run agent -- approve ${a.id}\n`);
+        if (command === "wechat") proposed.push(a);
+      },
     }
   : null;
 /** The Mac's calendars (iCloud keeps them in sync with the iPhone). */
@@ -283,6 +297,107 @@ async function watch(): Promise<void> {
   }
 }
 
+/**
+ * The agent in WeChat: the same tools and approvals as the terminal chat, in
+ * Mandarin, as the WeChat persona. Uses the companion's WeChat setup (WeChat
+ * for Mac, the Accessibility permission, data/contacts.json) and its lock, so
+ * 小拜 the companion and the agent never answer the same chat at once.
+ */
+async function wechat(): Promise<void> {
+  if (typeof config.wechatPersona !== "string") fail(config.wechatPersona.problem);
+  const wechatPersona = config.wechatPersona;
+  const draft = rest.includes("--draft");
+  let contacts;
+  try {
+    contacts = loadContacts(join(ROOT, "data/contacts.json"));
+  } catch (err) {
+    fail((err as Error).message);
+  }
+  if (!contacts) fail("No WeChat chat set up yet: run npm run dearbyte -- --chat <chat name> once (docs/guide.en.md).");
+  if (contacts.length > 1) fail("data/contacts.json has several contacts; the agent answers one chat only.");
+  const names = contacts[0].names;
+  const lock = acquireLock(join(ROOT, "data/runner.lock"));
+  if ("heldBy" in lock) fail(`Something is already answering WeChat (process ${lock.heldBy}): stop it first, or both would reply.`);
+  process.on("exit", lock.release);
+
+  const wechatSystem = `${WECHAT_NOTE}\n\n${agentSystemPrompt(ROOT, wechatPersona)}`;
+  const onEvent = (e: LoopEvent) => console.log(dim(describeEvent(e)));
+  proposed.length = 0;
+  const responder = new AgentResponder({
+    ask: async (history, text) => {
+      const result = await runAgent({
+        model: models.brain,
+        tools,
+        system: wechatSystem,
+        messages: [...history, { role: "user", content: withCurrentTime(text, new Date(), config.timeZone) }],
+        purpose: "wechat",
+        onEvent,
+      });
+      console.log(dim(`$${result.cost.toFixed(5)} · ${result.steps} step${result.steps === 1 ? "" : "s"} · ${result.stop}`));
+      return result;
+    },
+    store,
+    decide: (id, verdict) => decide(store, approvalHandlers, id, verdict, { now: new Date(), via: "wechat" }),
+    takeProposed: () => proposed.splice(0),
+    approvals: !draft,
+  });
+
+  const ui = new DesktopHelper();
+  const channel = new DesktopChannel({
+    ui,
+    companion: responder,
+    names,
+    photos: null,
+    mode: draft ? "draft" : "auto",
+    onEvent: (e: DesktopEvent) => {
+      const line = wechatLine(e);
+      if (line) console.log(line);
+    },
+  });
+  console.log(
+    dim(`DearByte in WeChat · ${tiers.brain.model} · persona ${wechatPersona} · chat「${names.join("」「")}」· ${draft ? "draft: replies are shown here, never sent" : "replying"} · Ctrl-C to stop`),
+  );
+  const stop = new AbortController();
+  const running = channel.run(stop.signal);
+  // Keep the Mac awake while this runs; it ends with this process.
+  spawn("caffeinate", ["-i", "-w", String(process.pid)], { stdio: "ignore" }).on("error", () => {}).unref();
+  let closing: Promise<void> | undefined;
+  const shutdown = () =>
+    (closing ??= (async () => {
+      channel.stopping = true; // type nothing more into WeChat
+      stop.abort();
+      await running;
+      await channel.settle();
+      ui.close();
+    })());
+  // A second Ctrl-C quits at once.
+  const interrupt = () => (closing ? process.exit(130) : void shutdown().then(() => process.exit(0)));
+  process.on("SIGINT", interrupt).on("SIGTERM", interrupt);
+  await running;
+  await shutdown();
+}
+
+function wechatLine(e: DesktopEvent): string | null {
+  switch (e.type) {
+    case "inbound":
+      return `wechat › ${e.text || "(no text)"}${e.image ? " [photo]" : ""}`;
+    case "sent":
+      return `dearbyte › ${e.bubble}`;
+    case "drafted":
+      return `dearbyte (draft, not sent) › ${e.bubble}`;
+    case "turn":
+    case "initiated":
+      return null;
+    case "error":
+    case "status":
+      return dim(e.message);
+    case "send_failed":
+      return dim(`send failed: ${e.message}`);
+    case "skipped":
+      return dim(`paused: ${e.count} message(s) not answered`);
+  }
+}
+
 const TELEGRAM_STEPS = `Telegram setup:
   1. In Telegram, message @BotFather, send /newbot, and follow the steps. It gives you a token.
   2. Add it to .env:  TELEGRAM_BOT_TOKEN=<token>   (keep it secret: whoever has it controls the bot)
@@ -451,6 +566,7 @@ async function main(): Promise<void> {
     console.log(formatPlan(plan, toInput(plan)));
     return;
   }
+  if (command === "wechat") return wechat();
   if (command === "status") return status();
   if (command === "alerts") return listAlerts();
   if (command === "brief") return report(await runMorningBrief(scheduledDeps(), { force: rest.includes("--force") }));
