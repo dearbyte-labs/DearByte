@@ -1,12 +1,15 @@
 // Which tools the agent gets, from what is set up: health tools when
 // HEALTH_MCP_URL is set, news when there's a watchlist, buying when there's a
-// wallet, the calendar when it can be read, memory tools always
+// wallet, the calendar when it can be read, the FIRE plan when there's a
+// finance profile, memory tools always
 // (they report when memory is off).
 
 import { z } from "zod";
 import { localDate } from "../companion/time.ts";
 import type { CalendarSource } from "../calendar/mac.ts";
 import { calendarTools } from "../calendar/tools.ts";
+import type { FinanceProfile } from "../finance/config.ts";
+import { financeTools } from "../finance/tools.ts";
 import { HealthMcpClient } from "../health/mcp-client.ts";
 import { healthTools } from "../health/tools.ts";
 import type { Store } from "../storage/store.ts";
@@ -46,6 +49,8 @@ export function agentToolset(o: {
   wallet?: WalletDeps | null;
   /** The user's calendar, when it can be read. */
   calendar?: CalendarSource | null;
+  /** The FIRE profile, when finance.json exists. */
+  finance?: FinanceProfile | null;
 }): {
   tools: ToolRegistry;
   health: boolean;
@@ -58,5 +63,6 @@ export function agentToolset(o: {
   if (o.calendar) tools.push(...calendarTools(o.calendar, { timeZone: o.timeZone }));
   if (o.watchlist) tools.push(...watchlistTools(o.store, o.watchlist));
   if (o.wallet) tools.push(...walletTools(o.wallet));
+  if (o.finance) tools.push(...financeTools(o.finance));
   return { tools: new ToolRegistry(tools), health: Boolean(bridge), bridge };
 }

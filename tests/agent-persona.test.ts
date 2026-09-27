@@ -10,8 +10,8 @@ const PERSONAS = listPersonas(ROOT);
 test("every persona loads, with the shared rules after it", () => {
   for (const persona of PERSONAS) {
     const system = agentSystemPrompt(ROOT, persona);
-    expect(system).toContain("# Rules that apply whatever your persona");
-    expect(system.indexOf("# Rules that apply")).toBeGreaterThan(system.length / 3);
+    expect(system.endsWith(readFileSync(join(ROOT, "prompts/agent/rules.en.md"), "utf8").trim())).toBe(true);
+    expect(system.startsWith(readFileSync(join(ROOT, "personas", persona, "persona.md"), "utf8").trim())).toBe(true);
   }
 });
 

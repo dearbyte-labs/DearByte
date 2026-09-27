@@ -36,6 +36,9 @@ import { TelegramBot } from "./telegram/bot.ts";
 import { feedbackButtons, pollInbox, sendApproval, type InboxDeps } from "./telegram/inbox.ts";
 import { checkWatchlist, type WatchlistDeps, type WatchOutcome } from "./watchlist/check.ts";
 import { loadWatchlist } from "./watchlist/config.ts";
+import { loadFinance, withChanges } from "./finance/config.ts";
+import { formatPlan, parseWhatIf } from "./finance/report.ts";
+import { toInput } from "./finance/tools.ts";
 import { appendFileSync, chmodSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createPublicClient, erc20Abi, http } from "viem";
@@ -57,13 +60,14 @@ const USAGE = `Usage:
   npm run agent -- telegram         set up Telegram, or test it
   npm run agent -- calendar         allow calendar access, list the next 48 hours
   npm run agent -- news             check the company watchlist now
+  npm run agent -- fire [--retire N --spend N --save N ...]   your road to financial independence (finance.json)
   npm run agent -- wallet [new]     the testnet wallet (new: create one)
   npm run agent -- approvals        requests waiting for your yes
   npm run agent -- approve N        approve request N (or: reject N)`;
 
 const config = loadConfig();
 const [command, ...rest] = process.argv.slice(2);
-if (!["ask", "chat", "status", "brief", "check", "watch", "alerts", "telegram", "calendar", "news", "wallet", "approvals", "approve", "reject"].includes(command ?? "")) {
+if (!["ask", "chat", "status", "brief", "check", "watch", "alerts", "telegram", "calendar", "news", "fire", "wallet", "approvals", "approve", "reject"].includes(command ?? "")) {
   console.log(USAGE);
   process.exit(command ? 1 : 0);
 }
@@ -77,6 +81,9 @@ const models = createTierModels(tiers, { store, weeklyCap: config.agentWeeklyCap
 const loadedWatchlist = loadWatchlist(config.watchlistPath);
 if (loadedWatchlist && "problem" in loadedWatchlist) console.error(dim(`Watchlist ignored: ${loadedWatchlist.problem}`));
 const watchlist = loadedWatchlist && !("problem" in loadedWatchlist) ? loadedWatchlist : null;
+const loadedFinance = loadFinance(config.financePath);
+if (loadedFinance && "problem" in loadedFinance && command !== "fire") console.error(dim(`Finance profile ignored: ${loadedFinance.problem}`));
+const finance = loadedFinance && !("problem" in loadedFinance) ? loadedFinance : null;
 if (config.telegram && "problem" in config.telegram) fail(config.telegram.problem);
 const telegramSetup = config.telegram;
 /** Telegram, once both the token and the chat are known. */
@@ -94,7 +101,7 @@ const wallet: WalletDeps | null = config.wallet
   : null;
 /** The Mac's calendars (iCloud keeps them in sync with the iPhone). */
 const calendar = config.calendar ? new MacCalendar() : null;
-const { tools, health, bridge } = agentToolset({ store, timeZone: config.timeZone, healthMcpUrl: config.healthMcpUrl, watchlist, wallet, calendar });
+const { tools, health, bridge } = agentToolset({ store, timeZone: config.timeZone, healthMcpUrl: config.healthMcpUrl, watchlist, wallet, calendar, finance });
 const system = agentSystemPrompt(ROOT, persona);
 
 /** What each kind of approval does once approved. A kind without a handler can't be approved. */
@@ -167,6 +174,7 @@ function status(): void {
         : "no watchlist (copy watchlist.example.json to watchlist.json)"
     }`,
   );
+  console.log(`Finance: ${finance ? `FIRE plan from finance.json (${finance.currency}) · npm run agent -- fire` : "no profile (copy finance.example.json to finance.json)"}`);
   console.log(
     `Wallet:  ${
       wallet ? `testnet, ${wallet.wallet.sellers.length} approved seller${wallet.wallet.sellers.length === 1 ? "" : "s"} · npm run agent -- wallet` : "not set up (npm run agent -- wallet new)"
@@ -427,6 +435,16 @@ async function main(): Promise<void> {
   if (command === "news") {
     if (loadedWatchlist && "problem" in loadedWatchlist) fail(loadedWatchlist.problem);
     return reportNews(await checkWatchlist(watchlistDeps()));
+  }
+  if (command === "fire") {
+    if (loadedFinance && "problem" in loadedFinance) fail(loadedFinance.problem);
+    if (!finance) fail("No finance profile: copy finance.example.json to finance.json and put in your numbers.");
+    const change = parseWhatIf(rest);
+    if ("problem" in change) fail(change.problem);
+    const plan = withChanges(finance, change);
+    if ("problem" in plan) fail(plan.problem);
+    console.log(formatPlan(plan, toInput(plan)));
+    return;
   }
   if (command === "status") return status();
   if (command === "alerts") return listAlerts();
