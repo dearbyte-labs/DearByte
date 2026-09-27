@@ -339,6 +339,7 @@ async function wechat(): Promise<void> {
     store,
     decide: (id, verdict) => decide(store, approvalHandlers, id, verdict, { now: new Date(), via: "wechat" }),
     takeProposed: () => proposed.splice(0),
+    approvals: !draft,
   });
 
   const ui = new DesktopHelper();

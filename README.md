@@ -230,7 +230,7 @@ npm run companion -- --fake  # no model calls; replies labelled fake
 
 The WeChat connection drives WeChat for Mac through macOS Accessibility. That isn't allowed by Tencent's terms and the account may be restricted, so use a test account, never your main one. Setup is in the [Chinese README](README.zh-CN.md) and the [operations guide](docs/guide.en.md).
 
-The same WeChat setup can carry the agent instead of the companion: `npm run agent -- wechat` (`--draft` to show replies without sending). It answers in Mandarin as 小拜, with every tool the agent has: health, calendar, money, news and the wallet. A purchase request is written by code into the chat; answer `/approve N`, then `确认`, or `/reject N` (Telegram's buttons work too). It shares the companion's lock, so only one of them answers the chat at a time.
+The same WeChat setup can carry the agent instead of the companion: `npm run agent -- wechat` (`--draft` to show replies without sending). It answers in Mandarin as 小拜, with every tool the agent has: health, calendar, money, news and the wallet. A purchase request is written by code into the chat; answer `/approve N`, then `确认`, or `/reject N`. Only requests shown in that chat can be approved there; while `watch` runs, Telegram's buttons work too. `--draft` never approves anything. It shares the companion's lock, so only one of them answers the chat at a time.
 
 ## Documentation
 

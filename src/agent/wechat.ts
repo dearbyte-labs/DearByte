@@ -6,7 +6,8 @@
 // Approvals are answered by code here, as in the terminal chat, never by the
 // model: "/approve N" shows code's own summary and waits for "确认" in the next
 // message. The request itself is written by code, so what you approve is never
-// the model's retelling. Telegram's buttons still work for the same request;
+// the model's retelling. Only requests shown in this chat can be approved here.
+// While `watch` runs, Telegram's buttons work for the same request too;
 // whichever answer lands first counts.
 
 import { APPROVAL_TTL_MS, type Decision } from "./approvals.ts";
@@ -18,7 +19,7 @@ import type { Approval, Store } from "../storage/store.ts";
 
 /** Put ahead of the persona, so the persona and the rules still come last. */
 export const WECHAT_NOTE = `# This conversation
-You are talking with the user in WeChat. Reply in Simplified Chinese (Mandarin), whatever language a tool result is in. Plain text only: no Markdown, no headings, no bullet symbols. Keep it short, as a chat message: a few sentences, split into at most 4 short paragraphs by blank lines; each paragraph is sent as its own bubble. Numbers, times and names stay exact.`;
+You are talking with the user in WeChat. Reply in Simplified Chinese (Mandarin), even when the user or a tool result uses another language; this overrides any rule below about matching the user's language. Plain text only: no Markdown, no headings, no bullet symbols. Keep it short, as a chat message: a few sentences, split into at most 4 short paragraphs by blank lines; each paragraph is sent as its own bubble. Numbers, times and names stay exact. Never write "/approve", "/reject" or "确认" as a message of its own: those are the user's commands, and code writes approval requests.`;
 
 /** Turns of history kept for context, counted in messages from the user. */
 const HISTORY_TURNS = 8;
@@ -36,6 +37,8 @@ export type AgentResponderDeps = {
   decide(id: number, verdict: "approve" | "reject"): Promise<Decision>;
   /** Approvals the agent proposed since the last call; each is shown once. */
   takeProposed(): Approval[];
+  /** false in draft mode: nothing is approved or rejected. */
+  approvals?: boolean;
   now?: () => Date;
 };
 
@@ -87,8 +90,11 @@ export function toBubbles(text: string): string[] {
   return bubbles.flatMap((b) => splitLong(b));
 }
 
+const graphemes = new Intl.Segmenter("zh", { granularity: "grapheme" });
+
+/** Cut on whole characters, so an emoji is never split. */
 function splitLong(bubble: string): string[] {
-  const chars = [...bubble];
+  const chars = [...graphemes.segment(bubble)].map((g) => g.segment);
   if (chars.length <= MAX_BUBBLE_CHARS) return [bubble];
   const out: string[] = [];
   for (let i = 0; i < chars.length; i += MAX_BUBBLE_CHARS) out.push(chars.slice(i, i + MAX_BUBBLE_CHARS).join(""));
@@ -107,48 +113,93 @@ export class AgentResponder implements Responder {
   private history: AgentMessage[] = [];
   /** An approval waiting for "确认" in the next message. */
   private confirming: number | null = null;
+  /**
+   * Requests this chat has been shown. Only these can be approved here, so a
+   * request made elsewhere (Telegram, the terminal) is never approved by
+   * whoever can type into this chat.
+   */
+  private readonly shown = new Set<number>();
+  /** Requests proposed in a turn whose bubbles didn't all go out; shown with the next reply. */
+  private unshown: Approval[] = [];
 
   constructor(private readonly d: AgentResponderDeps) {}
 
   async handle(input: { text: string; image?: ImageInput }): Promise<ReplyTurn> {
     const text = input.text.trim();
-    const now = (this.d.now ?? (() => new Date()))();
-
-    // Approvals first, by code. Anything but "确认" after /approve N is a no.
-    if (this.confirming !== null) {
-      const id = this.confirming;
-      this.confirming = null;
-      if (CONFIRM.test(text)) return said([decisionText(await this.d.decide(id, "approve"), "approve")]);
-      return said(["好，没有批准，什么都没做。"]);
+    // Messages sent in a quick burst arrive joined by newlines: "/approve 7" then "确认" still work.
+    const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+    if (lines.length && (APPROVE.test(lines[0]) || this.confirming !== null) && lines.every((l) => APPROVE.test(l) || CONFIRM.test(l))) {
+      const bubbles: string[] = [];
+      for (const line of lines) bubbles.push(await this.command(line));
+      return said(bubbles);
     }
-    const answer = text.match(APPROVE);
-    if (answer) {
-      const id = Number(answer[2]);
-      const verdict = answer[1].toLowerCase() as "approve" | "reject";
-      const a = this.d.store.approval(id);
-      if (verdict === "approve" && a?.status === "pending" && Date.parse(a.expiresAt) > now.getTime()) {
-        this.confirming = id;
-        return said([`${a.summary}\n\n确定要批准吗？回复「确认」就执行，回复别的就取消。`]);
-      }
-      return said([decisionText(await this.d.decide(id, verdict), verdict)]);
+    if (this.confirming !== null) {
+      this.confirming = null;
+      this.note(text, "（取消了等待确认的请求）");
+      return said(["好，没有批准，什么都没做。"]);
     }
 
     if (!text && input.image) return said(["我这边还看不到图片，用文字告诉我吧。"]);
     const asked = input.image ? `${text}\n（用户还发了一张图，你看不到。）` : text;
-    const result = await this.d.ask(this.history, asked);
-    const bubbles = result.text ? toBubbles(result.text) : [];
+    let result: LoopResult | null = null;
+    try {
+      result = await this.d.ask(this.history, asked);
+    } catch (err) {
+      console.error(`agent run failed: ${(err as Error).message}`);
+    }
+    const bubbles = result?.text ? toBubbles(result.text) : [];
     // A truncated answer that still has words is sent as it is; any other early stop says why.
-    if (result.stop !== "done" && !(result.stop === "truncated" && bubbles.length)) bubbles.push(stopText(result.stop));
+    if (!result) bubbles.push(stopText("other"));
+    else if (result.stop !== "done" && !(result.stop === "truncated" && bubbles.length)) bubbles.push(stopText(result.stop));
     else if (!bubbles.length) bubbles.push(stopText("other"));
-    // Written by code, after the agent's words: the request as it's stored.
-    for (const a of this.d.takeProposed()) bubbles.push(approvalBubble(a));
+    // Written by code, after the agent's words: the request as it's stored. Taken even when the run failed.
+    const requests = [...this.unshown.splice(0), ...this.d.takeProposed()];
+    const first = bubbles.length;
+    for (const a of requests) bubbles.push(approvalBubble(a));
     return {
       reply: { bubbles },
-      // Kept only when the run finished and every bubble reached the chat, so the next turn never follows a half-sent one.
       commit: (sent) => {
-        if (result.stop === "done" && sent.length === bubbles.length) this.history = recentHistory(result.messages);
+        // A request counts as shown only once its bubble went out; the rest wait for the next reply.
+        requests.forEach((a, i) => (i + first < sent.length ? this.shown.add(a.id) : this.unshown.push(a)));
+        // History is kept only when the run finished and every bubble went out, so the next turn never follows a half-sent one.
+        if (result?.stop === "done" && sent.length === bubbles.length) this.history = recentHistory(result.messages);
       },
       memory: Promise.resolve(null),
     };
+  }
+
+  /** One approval command or 确认, answered by code. */
+  private async command(line: string): Promise<string> {
+    const now = (this.d.now ?? (() => new Date()))();
+    if (CONFIRM.test(line)) {
+      const id = this.confirming;
+      this.confirming = null;
+      if (id === null) return "现在没有等你确认的请求。";
+      return this.decided(line, id, "approve");
+    }
+    // A new command while one waits for 确认 replaces it.
+    this.confirming = null;
+    const [, word, rawId] = line.match(APPROVE)!;
+    const id = Number(rawId);
+    const verdict = word.toLowerCase() as "approve" | "reject";
+    if (!this.shown.has(id)) return `这里没有 #${id} 这个请求。在这里只能批准在微信里提出的请求。`;
+    if (this.d.approvals === false) return "现在是草稿模式，不会执行任何批准。";
+    const a = this.d.store.approval(id);
+    if (verdict === "approve" && a?.status === "pending" && Date.parse(a.expiresAt) > now.getTime()) {
+      this.confirming = id;
+      return `${a.summary}\n\n确定要批准吗？回复「确认」就执行，回复别的就取消。`;
+    }
+    return this.decided(line, id, verdict);
+  }
+
+  private async decided(line: string, id: number, verdict: "approve" | "reject"): Promise<string> {
+    const text = decisionText(await this.d.decide(id, verdict), verdict);
+    this.note(line, text);
+    return text;
+  }
+
+  /** Tells the model, next turn, what was decided outside it. */
+  private note(user: string, outcome: string): void {
+    this.history = recentHistory([...this.history, { role: "user", content: user }, { role: "assistant", content: [{ type: "text", text: outcome }] }]);
   }
 }
