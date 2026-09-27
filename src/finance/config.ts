@@ -1,7 +1,7 @@
 // The user's money picture for the FIRE plan: age, what they own, what they
 // save and spend, and what they're aiming for. It lives in finance.json,
-// which is personal and ignored by Git; see finance.example.json. Once
-// MindGo is connected, its numbers can replace the monthly figures here.
+// which is personal and ignored by Git; see finance.example.json. With
+// "monthlyFrom": "mindgo", MindGo's last 12 months replace the monthly figures.
 
 import { existsSync, readFileSync } from "node:fs";
 import { z } from "zod";
@@ -24,6 +24,8 @@ export const FinanceProfile = z
     returnRate: Rate.default(FIRE_DEFAULTS.returnRate),
     inflation: Rate.default(FIRE_DEFAULTS.inflation),
     withdrawalRate: z.number().min(0.01).max(0.1).default(FIRE_DEFAULTS.withdrawalRate),
+    /** Where monthly spending and saving come from: these typed-in figures, or MindGo's last 12 months (when connected). */
+    monthlyFrom: z.enum(["finance.json", "mindgo"]).default("finance.json"),
     /** In the user's words: what the money is for. */
     goals: z.string().max(1000).optional(),
   })

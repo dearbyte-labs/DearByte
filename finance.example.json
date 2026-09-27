@@ -9,5 +9,6 @@
   "returnRate": 0.07,
   "inflation": 0.03,
   "withdrawalRate": 0.04,
+  "monthlyFrom": "finance.json",
   "goals": "Have the option to stop working by 50, and take a year off to travel before 30."
 }

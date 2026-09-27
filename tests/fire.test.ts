@@ -65,7 +65,7 @@ test("years to the 4% number, and null when it never arrives", () => {
   expect(firePlan({ ...base, netAssets: 1_000_000 }).yearsToFourPercent).toBe(0);
 });
 
-const profile: FinanceProfile = { currency: "CAD", ...base, goals: "Stop working by 50." };
+const profile: FinanceProfile = { currency: "CAD", ...base, monthlyFrom: "finance.json", goals: "Stop working by 50." };
 
 test("finance.json is validated with defaults, and bad ages are explained", () => {
   const dir = mkdtempSync(join(tmpdir(), "dearbyte-finance-"));

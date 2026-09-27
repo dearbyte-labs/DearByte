@@ -8,7 +8,7 @@ import { Store } from "../src/storage/store.ts";
 
 const TOKEN = "mgo_" + "k".repeat(43);
 const CONFIG = { url: "https://mindgo.example.com/mcp", token: TOKEN };
-const profile: FinanceProfile = { currency: "CAD", age: 22, retireAge: 50, lifespan: 90, netAssets: 15_000, monthlySavings: 1_200, monthlySpend: 2_500, returnRate: 0.07, inflation: 0.03, withdrawalRate: 0.04 };
+const profile: FinanceProfile = { currency: "CAD", age: 22, retireAge: 50, lifespan: 90, netAssets: 15_000, monthlySavings: 1_200, monthlySpend: 2_500, returnRate: 0.07, inflation: 0.03, withdrawalRate: 0.04, monthlyFrom: "mindgo" };
 
 /** A fake MindGo over HTTP: answers JSON-RPC like POST /mcp and records the requests. */
 function fakeMindgo(tools: Record<string, (args: Record<string, unknown>) => unknown>, o: { status?: number; offline?: boolean } = {}) {
@@ -64,18 +64,27 @@ test("the money tools pass the term through, and a sleeping server is explained,
   expect(out.message).toMatch(/waking up/);
 });
 
-test("with enough months, the plan's monthly numbers come from MindGo; a negative saving counts as 0", async () => {
-  const { client } = fakeMindgo({ money_baseline: () => baseline() });
+test("when finance.json asks for it, the plan's monthly numbers come from MindGo, read once and cached", async () => {
+  const { client, sent } = fakeMindgo({ money_baseline: () => baseline() });
   const used = await withMindgo(profile, client);
   expect(used.source).toEqual({ from: "MindGo", months: 12, monthlyIncome: 4_000 });
   expect(used.profile).toMatchObject({ monthlySpend: 2_800, monthlySavings: 1_200, age: 22, netAssets: 15_000 });
-
-  const overspending = fakeMindgo({ money_baseline: () => baseline({ monthly_spending: 3_053.2, monthly_saving: -592.8 }) });
-  expect((await withMindgo(profile, overspending.client)).profile).toMatchObject({ monthlySpend: 3_053.2, monthlySavings: 0 });
+  await withMindgo(profile, client);
+  expect(sent.filter((s) => s.rpc.method === "tools/call")).toHaveLength(1);
 });
 
-test("finance.json stays in charge when MindGo is too new, in another currency, empty or asleep", async () => {
+test("without monthlyFrom: mindgo, MindGo isn't even asked", async () => {
+  const { client, sent } = fakeMindgo({ money_baseline: () => baseline() });
+  const typed = { ...profile, monthlyFrom: "finance.json" as const };
+  expect(await withMindgo(typed, client)).toEqual({ profile: typed, source: { from: "finance.json" } });
+  expect(sent).toHaveLength(0);
+});
+
+test("finance.json stays in charge, and says why, when MindGo overspent, refused, is too new, in another currency, empty or asleep", async () => {
   const cases: Array<[ReturnType<typeof fakeMindgo>, RegExp]> = [
+    [fakeMindgo({ money_baseline: () => baseline({ monthly_spending: 3_053.2, monthly_saving: -592.8 }) }), /spent more than they earned/],
+    [fakeMindgo({}, { status: 401 }), /refused or failed: .*answered 401: check MINDGO_TOKEN/],
+    [fakeMindgo({ money_baseline: () => ({ unexpected: true }) }), /expected shape/],
     [fakeMindgo({ money_baseline: () => baseline({ months_with_data: 2 }) }), /only 2 month/],
     [fakeMindgo({ money_baseline: () => baseline({ currency: "USD" }) }), /USD/],
     [fakeMindgo({ money_baseline: () => baseline({ months_with_data: 0, monthly_spending: null, monthly_saving: null }) }), /no records/],
@@ -87,7 +96,7 @@ test("finance.json stays in charge when MindGo is too new, in another currency, 
     expect(used.source.from).toBe("finance.json");
     expect("note" in used.source ? used.source.note : "").toMatch(why);
   }
-  expect((await withMindgo(profile, null)).source).toEqual({ from: "finance.json" });
+  expect((await withMindgo(profile, null)).source.from).toBe("finance.json");
 });
 
 test("the FIRE tool says where its monthly numbers came from, and a what-if still wins over MindGo", async () => {

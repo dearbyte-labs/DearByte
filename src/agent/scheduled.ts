@@ -150,7 +150,7 @@ export async function runCautionCheck(d: ScheduledDeps): Promise<Outcome> {
 
 /** Money gets a line in the brief only when something is off: a quiet brief is worth more than a daily budget report. */
 const MONEY_IN_BRIEF =
-  "Also check money_this_term and money_goals. Mention money only if pace.ratio is 1.15 or more (spending faster than last term) or a goal is overdue, in one line with the numbers; otherwise leave money out.";
+  "Also check money_this_term and money_goals. Mention money only if this term's spending is above its income and pace.ratio is 1.15 or more (faster than the term it names), or a goal is overdue, in one line with the numbers; otherwise leave money out.";
 
 const hasMoney = (d: Pick<ScheduledDeps, "tools">): boolean => d.tools.definitions().some((t) => t.name === "money_this_term");
 

@@ -65,7 +65,11 @@ export class McpClient {
 
   private async request(method: string, params: Record<string, unknown>): Promise<unknown> {
     const res = await this.send({ jsonrpc: "2.0", id: this.nextId++, method, params });
-    const body = (await res.json().catch(() => null)) as RpcResponse | null;
+    const body = (await res.json().catch((err: Error) => {
+      // The deadline can fire while the body is still arriving; that's a timeout, not bad JSON.
+      if (err?.name === "TimeoutError") throw this.fail(`The ${this.o.name} timed out`);
+      return null;
+    })) as RpcResponse | null;
     if (!body) throw this.fail(`${method}: the ${this.o.name} answered with something that isn't JSON`);
     if (body.error) throw this.fail(`${method}: ${body.error.message ?? "error"} (${body.error.code ?? "?"})`);
     return body.result;
@@ -85,6 +89,8 @@ export class McpClient {
         },
         body: JSON.stringify(body),
         signal: AbortSignal.timeout(this.o.timeoutMs ?? DEFAULT_TIMEOUT_MS),
+        // Neither server redirects; following one could carry a bearer token somewhere else.
+        redirect: "error",
       });
     } catch (err) {
       // Network errors can quote the URL; only the reason is kept.

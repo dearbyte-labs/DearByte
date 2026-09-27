@@ -17,7 +17,7 @@ Each step works without the ones after it. Run `npm run agent -- status` at any 
 | 3. Health | Install the [dearbyte-bridge](https://github.com/dearbyte-labs/dearbyte-bridge) iPhone app and Worker; put the MCP address in `HEALTH_MCP_URL` | Sleep, heart rate and HRV tools; the brief and caution alerts |
 | 4. Telegram | Create a bot with @BotFather; see [Telegram](../README.md#telegram) | Alerts and approvals reach you away from the terminal |
 | 5. Watchlist | Copy `watchlist.example.json` to `watchlist.json`; optionally set `SEC_CONTACT_EMAIL` | Company news, screened against your interests |
-| 6. Money | Copy `finance.example.json` to `finance.json` and put in your numbers. Optionally connect MindGo: in MindGo's `backend/`, `npm run access-token -- create <email> DearByte`, then set `MINDGO_MCP_URL` and `MINDGO_TOKEN` | `npm run agent -- fire`, and the agent can answer "when could I retire?". With MindGo, the plan uses your last 12 months of spending and saving, the agent can answer "how am I doing this term?", and the brief flags spending ahead of pace or an overdue goal |
+| 6. Money | Copy `finance.example.json` to `finance.json` and put in your numbers. Optionally connect MindGo: in MindGo's `backend/`, `npm run access-token -- create <email> DearByte`, then set `MINDGO_MCP_URL` and `MINDGO_TOKEN` | `npm run agent -- fire`, and the agent can answer "when could I retire?". With MindGo, the agent can answer "how am I doing this term?" and the brief flags an overspent term running ahead of pace, or an overdue goal. Add `"monthlyFrom": "mindgo"` to `finance.json` to plan on MindGo's last 12 months instead of your typed figures (it falls back, and says why, when those months spent more than they earned) |
 | 7. Wallet | `npm run agent -- wallet new`, then test USDC from [Circle's faucet](https://faucet.circle.com) (Base Sepolia); set `DEARBYTE_SELLERS` | The agent can propose purchases, and you approve them |
 
 Secrets (`HEALTH_MCP_URL`, `MINDGO_TOKEN`, `TELEGRAM_BOT_TOKEN`, `DEARBYTE_WALLET_KEY`, API keys) go only in `.env`, which Git ignores. Never paste them into chat, issues, commits or screenshots. `wallet new` prints only the address, never the key.
@@ -117,7 +117,7 @@ Run these once each part is set up. Each should take a few minutes.
 
 **MindGo (needs `MINDGO_MCP_URL` and `MINDGO_TOKEN`)**
 - [ ] `npm run agent -- status` says "MindGo connected".
-- [ ] `npm run agent -- fire` says its monthly numbers come from MindGo, and they match MindGo's dashboard averages.
+- [ ] With `"monthlyFrom": "mindgo"` in `finance.json`, `npm run agent -- fire` says its monthly numbers come from MindGo (or why it kept finance.json's), and they match MindGo's averages.
 - [ ] `npm run agent -- ask "How am I doing on money this term?"` names this term's totals and the term it compares pace with.
 - [ ] Revoke the token in MindGo (`npm run access-token -- revoke <email> <id>`); `ask` then explains that MindGo refused the token.
 

@@ -5,36 +5,64 @@ import { z } from "zod";
 import { defineTool, type Tool } from "../agent/tools.ts";
 import { withChanges, type FinanceProfile } from "./config.ts";
 import { firePlan, type FireInput } from "./fire.ts";
-import { MIN_BASELINE_MONTHS, readBaseline } from "./mindgo.ts";
-import type { McpClient } from "../mcp/client.ts";
+import { MIN_BASELINE_MONTHS, readBaseline, type Baseline } from "./mindgo.ts";
+import { McpError, type McpClient } from "../mcp/client.ts";
 
 /** Where the plan's monthly numbers came from, for the model and the CLI to say. */
 export type MonthlySource = { from: "finance.json"; note?: string } | { from: "MindGo"; months: number; monthlyIncome: number | null };
 
+/** The FIRE plan waits this long for MindGo, then goes on with finance.json: a sleeping server shouldn't hold up an answer. */
+const BASELINE_DEADLINE_MS = 15_000;
+/** A baseline is 12 months of totals; re-reading it on every what-if would only add waits. */
+const BASELINE_CACHE_MS = 10 * 60_000;
+const cache = new WeakMap<object, { at: number; baseline: Baseline | null }>();
+
+type Source = Pick<McpClient, "callTool">;
+
+async function cachedBaseline(mindgo: Source): Promise<Baseline | null> {
+  const hit = cache.get(mindgo);
+  if (hit && Date.now() - hit.at < BASELINE_CACHE_MS) return hit.baseline;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new McpError("The MindGo server timed out")), BASELINE_DEADLINE_MS);
+  });
+  try {
+    const baseline = await Promise.race([readBaseline(mindgo), deadline]);
+    cache.set(mindgo, { at: Date.now(), baseline });
+    return baseline;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /**
  * The profile with MindGo's last-12-months spending and saving in place of the
- * typed-in monthly figures, when MindGo is connected, has enough months and
- * counts in the same currency. Otherwise the profile as it is, and why.
+ * typed-in monthly figures, when finance.json asks for it ("monthlyFrom":
+ * "mindgo"), MindGo answers, has enough months, counts in the same currency
+ * and shows a positive saving. Otherwise the profile as it is, and why.
  */
-export async function withMindgo(profile: FinanceProfile, mindgo: Pick<McpClient, "callTool"> | null): Promise<{ profile: FinanceProfile; source: MonthlySource }> {
-  if (!mindgo) return { profile, source: { from: "finance.json" } };
-  let baseline;
+export async function withMindgo(profile: FinanceProfile, mindgo: Source | null): Promise<{ profile: FinanceProfile; source: MonthlySource }> {
+  const typed = (note?: string) => ({ profile, source: { from: "finance.json" as const, ...(note ? { note } : {}) } });
+  if (profile.monthlyFrom !== "mindgo") return typed();
+  if (!mindgo) return typed('finance.json asks for MindGo ("monthlyFrom": "mindgo"), but MindGo isn\'t connected.');
+  let baseline: Baseline | null;
   try {
-    baseline = await readBaseline(mindgo);
-  } catch {
-    return { profile, source: { from: "finance.json", note: "MindGo didn't answer (it may be waking up), so this uses finance.json's monthly numbers." } };
+    baseline = await cachedBaseline(mindgo);
+  } catch (err) {
+    if (err instanceof McpError && /timed out|could not connect/.test(err.message)) return typed("MindGo didn't answer (its free hosting may be waking up), so this uses finance.json's monthly numbers.");
+    // Other failures (a revoked token, a server error) say what happened; McpError messages carry no secrets.
+    return typed(`MindGo refused or failed: ${err instanceof McpError ? err.message : "unexpected error"}. Using finance.json's monthly numbers.`);
   }
-  if (!baseline || baseline.monthly_spending === null || baseline.monthly_saving === null) {
-    return { profile, source: { from: "finance.json", note: "MindGo has no records for the last 12 months yet." } };
+  if (!baseline) return typed("MindGo's answer wasn't in the expected shape (MindGo and DearByte may be out of step).");
+  if (baseline.monthly_spending === null || baseline.monthly_saving === null) return typed("MindGo has no records for the last 12 months yet.");
+  if (baseline.months_with_data < MIN_BASELINE_MONTHS) return typed(`MindGo has only ${baseline.months_with_data} month(s) of records, too few to plan on.`);
+  if (baseline.currency !== profile.currency) return typed(`MindGo counts in ${baseline.currency} but finance.json in ${profile.currency}.`);
+  if (baseline.monthly_saving <= 0) {
+    // A year that spent more than it earned (a study term, tuition) isn't a saving rate to retire on.
+    return typed(`MindGo's last ${baseline.months_with_data} months spent more than they earned (${Math.round(baseline.monthly_saving)} a month), so the plan keeps finance.json's figures.`);
   }
-  if (baseline.months_with_data < MIN_BASELINE_MONTHS) {
-    return { profile, source: { from: "finance.json", note: `MindGo has only ${baseline.months_with_data} month(s) of records, too few to plan on.` } };
-  }
-  if (baseline.currency !== profile.currency) {
-    return { profile, source: { from: "finance.json", note: `MindGo counts in ${baseline.currency} but finance.json in ${profile.currency}.` } };
-  }
-  const merged = withChanges(profile, { monthlySpend: baseline.monthly_spending, monthlySavings: Math.max(0, baseline.monthly_saving) });
-  if ("problem" in merged) return { profile, source: { from: "finance.json", note: "MindGo's numbers were out of range." } };
+  const merged = withChanges(profile, { monthlySpend: baseline.monthly_spending, monthlySavings: baseline.monthly_saving });
+  if ("problem" in merged) return typed("MindGo's numbers were out of range.");
   return { profile: merged, source: { from: "MindGo", months: baseline.months_with_data, monthlyIncome: baseline.monthly_income } };
 }
 
@@ -81,14 +109,14 @@ export function describePlan(profile: FinanceProfile, input: FireInput) {
 
 export function describeSource(source: MonthlySource): string {
   if (source.from === "MindGo") {
-    const saving = source.monthlyIncome === null ? "" : " (income minus spending, or 0 when spending was higher)";
+    const saving = source.monthlyIncome === null ? "" : " (income minus spending). Everything recorded counts, tuition included";
     return `MindGo: average monthly spending and saving over the last ${source.months} months with records${saving}. Age, assets and targets are from finance.json.`;
   }
   return `finance.json, typed in by the user${source.note ? `. ${source.note}` : ""}`;
 }
 
 export function toInput(profile: FinanceProfile): FireInput {
-  const { currency: _c, goals: _g, ...numbers } = profile;
+  const { currency: _c, goals: _g, monthlyFrom: _m, ...numbers } = profile;
   return numbers;
 }
 
