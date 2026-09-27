@@ -62,7 +62,7 @@ DearByte is early and built in the open. All of Phase 1 is on `master`, with 289
 **Phase 2: daily use, measured**
 - Two weeks of real use with feedback on every alert; measure precision, missed events, delay and cost per month
 - Calendar awareness on the Mac (done early, see Status); an English app UI and more news sources
-- Money: MindGo, the budgeting app, connected through a read-only MCP endpoint, so the FIRE plan uses your real spending and saving, and DearByte speaks up when spending runs ahead of the term's pace or a goal falls behind
+- Money: MindGo, the budgeting app, connected through a read-only MCP endpoint, so the FIRE plan uses your real spending and saving, and DearByte speaks up when spending runs ahead of the term's pace or a goal falls behind (built early: needs MindGo's `/mcp` deployed)
 - Approving purchases from the Apple Watch (needs a paid Apple Developer account)
 
 **Later**
@@ -125,6 +125,8 @@ All settings go in `.env`.
 | `SEC_CONTACT_EMAIL` | — | SEC asks automated clients for a contact email; without it the watchlist reads newsrooms only |
 | `DEARBYTE_WATCHLIST` | `watchlist.json` | Where your watchlist is |
 | `DEARBYTE_FINANCE` | `finance.json` | Where your FIRE profile is (copy `finance.example.json`) |
+| `MINDGO_MCP_URL` | — | MindGo's read-only MCP endpoint, e.g. `https://<your-mindgo-api>/mcp` |
+| `MINDGO_TOKEN` | — | A MindGo access token (`mgo_…`, from `npm run access-token` in MindGo). Secret, but read-only and revocable |
 | `DEARBYTE_CALENDAR` | on (macOS) | `off` stops DearByte reading your calendar. `npm run agent -- calendar` asks macOS for access and lists the next 48 hours |
 | `DEARBYTE_WALLET_KEY` | — | The testnet wallet's key; `npm run agent -- wallet new` creates it and writes it here |
 | `DEARBYTE_SELLERS` | — | Comma-separated seller addresses the wallet may buy from, like `http://127.0.0.1:4021` |
@@ -192,7 +194,7 @@ you ─ CLI / Telegram ─┐
                              ├─ calendar (the Mac's, via EventKit)
                              ├─ memory
                              ├─ company watchlist
-                             ├─ FIRE plan (finance.json; MindGo next)
+                             ├─ FIRE plan (finance.json + MindGo)
                              └─ propose_purchase ──► your approval ──► payment code
 ```
 

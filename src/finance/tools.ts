@@ -5,6 +5,38 @@ import { z } from "zod";
 import { defineTool, type Tool } from "../agent/tools.ts";
 import { withChanges, type FinanceProfile } from "./config.ts";
 import { firePlan, type FireInput } from "./fire.ts";
+import { MIN_BASELINE_MONTHS, readBaseline } from "./mindgo.ts";
+import type { McpClient } from "../mcp/client.ts";
+
+/** Where the plan's monthly numbers came from, for the model and the CLI to say. */
+export type MonthlySource = { from: "finance.json"; note?: string } | { from: "MindGo"; months: number; monthlyIncome: number | null };
+
+/**
+ * The profile with MindGo's last-12-months spending and saving in place of the
+ * typed-in monthly figures, when MindGo is connected, has enough months and
+ * counts in the same currency. Otherwise the profile as it is, and why.
+ */
+export async function withMindgo(profile: FinanceProfile, mindgo: Pick<McpClient, "callTool"> | null): Promise<{ profile: FinanceProfile; source: MonthlySource }> {
+  if (!mindgo) return { profile, source: { from: "finance.json" } };
+  let baseline;
+  try {
+    baseline = await readBaseline(mindgo);
+  } catch {
+    return { profile, source: { from: "finance.json", note: "MindGo didn't answer (it may be waking up), so this uses finance.json's monthly numbers." } };
+  }
+  if (!baseline || baseline.monthly_spending === null || baseline.monthly_saving === null) {
+    return { profile, source: { from: "finance.json", note: "MindGo has no records for the last 12 months yet." } };
+  }
+  if (baseline.months_with_data < MIN_BASELINE_MONTHS) {
+    return { profile, source: { from: "finance.json", note: `MindGo has only ${baseline.months_with_data} month(s) of records, too few to plan on.` } };
+  }
+  if (baseline.currency !== profile.currency) {
+    return { profile, source: { from: "finance.json", note: `MindGo counts in ${baseline.currency} but finance.json in ${profile.currency}.` } };
+  }
+  const merged = withChanges(profile, { monthlySpend: baseline.monthly_spending, monthlySavings: Math.max(0, baseline.monthly_saving) });
+  if ("problem" in merged) return { profile, source: { from: "finance.json", note: "MindGo's numbers were out of range." } };
+  return { profile: merged, source: { from: "MindGo", months: baseline.months_with_data, monthlyIncome: baseline.monthly_income } };
+}
 
 const round = (n: number) => (Number.isFinite(n) ? Math.round(n) : null);
 
@@ -47,12 +79,20 @@ export function describePlan(profile: FinanceProfile, input: FireInput) {
   };
 }
 
+export function describeSource(source: MonthlySource): string {
+  if (source.from === "MindGo") {
+    const saving = source.monthlyIncome === null ? "" : " (income minus spending, or 0 when spending was higher)";
+    return `MindGo: average monthly spending and saving over the last ${source.months} months with records${saving}. Age, assets and targets are from finance.json.`;
+  }
+  return `finance.json, typed in by the user${source.note ? `. ${source.note}` : ""}`;
+}
+
 export function toInput(profile: FinanceProfile): FireInput {
   const { currency: _c, goals: _g, ...numbers } = profile;
   return numbers;
 }
 
-export function financeTools(profile: FinanceProfile): Tool[] {
+export function financeTools(saved: FinanceProfile, mindgo: Pick<McpClient, "callTool"> | null = null): Tool[] {
   return [
     defineTool({
       name: "fire_plan",
@@ -69,10 +109,11 @@ export function financeTools(profile: FinanceProfile): Tool[] {
         inflation: z.number().min(-0.2).max(0.3).optional(),
       }),
       run: async (change) => {
+        const { profile, source } = await withMindgo(saved, mindgo);
         const plan = withChanges(profile, change);
         if ("problem" in plan) return JSON.stringify({ status: "invalid", message: plan.problem });
         const asked = Object.fromEntries(Object.entries(change).filter(([, v]) => v !== undefined));
-        return JSON.stringify({ status: "ok", ...(Object.keys(asked).length ? { whatIf: asked } : {}), ...describePlan(plan, toInput(plan)) });
+        return JSON.stringify({ status: "ok", monthlyNumbersFrom: describeSource(source), ...(Object.keys(asked).length ? { whatIf: asked } : {}), ...describePlan(plan, toInput(plan)) });
       },
     }),
   ];

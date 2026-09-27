@@ -25,6 +25,8 @@ export type Config = {
   watchlistPath: string;
   /** Path of finance.json, the FIRE profile (it may not exist). */
   financePath: string;
+  /** MindGo's read-only MCP endpoint and access token: null when not set up. */
+  mindgo: MindgoConfig | { problem: string } | null;
   /** Contact email SEC requires from automated clients; filings are skipped without it. */
   secContact: string | null;
   /** Telegram for alerts and approvals: null when not set up; chatId is null until the setup step finds it. */
@@ -41,6 +43,27 @@ export type Config = {
   /** Optional push URL (e.g. https://ntfy.sh/<topic>) for alerts when 小拜 gets stuck. */
   alertUrl: string | null;
 };
+
+export type MindgoConfig = { url: string; token: string };
+
+/** MindGo's MCP address and token, both or neither. The token is a secret, so it never appears in a problem message. */
+export function resolveMindgo(rawUrl: string | undefined, rawToken: string | undefined): MindgoConfig | { problem: string } | null {
+  const url = rawUrl?.trim() ?? "";
+  const token = rawToken?.trim() ?? "";
+  if (!url && !token) return null;
+  if (!url || !token) return { problem: "MindGo needs both MINDGO_MCP_URL and MINDGO_TOKEN" };
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return { problem: "MINDGO_MCP_URL isn't a URL" };
+  }
+  const local = ["localhost", "127.0.0.1", "[::1]"].includes(parsed.hostname);
+  // The token travels in a header, so anything but a local test server must be HTTPS.
+  if (parsed.protocol !== "https:" && !(local && parsed.protocol === "http:")) return { problem: "MINDGO_MCP_URL must be https" };
+  if (!/^mgo_[A-Za-z0-9_-]{43}$/.test(token)) return { problem: "MINDGO_TOKEN doesn't look like a MindGo access token (mgo_…)" };
+  return { url: parsed.href, token };
+}
 
 // Minimal .env reader: KEY=value lines, optional quotes. Real env vars win.
 function readDotEnv(path: string): Record<string, string> {
@@ -71,6 +94,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     wallet: resolveWallet(merged),
     watchlistPath: merged.DEARBYTE_WATCHLIST || join(ROOT, "watchlist.json"),
     financePath: merged.DEARBYTE_FINANCE || join(ROOT, "finance.json"),
+    mindgo: resolveMindgo(merged.MINDGO_MCP_URL, merged.MINDGO_TOKEN),
     secContact: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(merged.SEC_CONTACT_EMAIL?.trim() ?? "") ? merged.SEC_CONTACT_EMAIL!.trim() : null,
     telegram: resolveTelegram(merged.TELEGRAM_BOT_TOKEN, merged.TELEGRAM_CHAT_ID),
     dbPath: merged.COMPANION_DB || join(ROOT, "data/companion.sqlite"),

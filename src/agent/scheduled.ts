@@ -148,6 +148,12 @@ export async function runCautionCheck(d: ScheduledDeps): Promise<Outcome> {
   return deliver(d, now, "caution", "DearByte", `${c.text}\n\n(Why: ${fresh.map((t) => t.kind.replaceAll("_", " ")).join(", ")})`, fresh);
 }
 
+/** Money gets a line in the brief only when something is off: a quiet brief is worth more than a daily budget report. */
+const MONEY_IN_BRIEF =
+  "Also check money_this_term and money_goals. Mention money only if pace.ratio is 1.15 or more (spending faster than last term) or a goal is overdue, in one line with the numbers; otherwise leave money out.";
+
+const hasMoney = (d: Pick<ScheduledDeps, "tools">): boolean => d.tools.definitions().some((t) => t.name === "money_this_term");
+
 /** Sends the morning brief once a day; `force` sends it anyway (for testing and demos). */
 export async function runMorningBrief(d: ScheduledDeps, o: { force?: boolean } = {}): Promise<Outcome> {
   const now = (d.now ?? (() => new Date()))();
@@ -158,6 +164,8 @@ export async function runMorningBrief(d: ScheduledDeps, o: { force?: boolean } =
     d,
     "morning_brief",
     `${SCHEDULED}\nWrite the user's morning brief. Check their sleep and vitals with your tools, ${d.calendar ? "today's calendar, " : ""}and memory for anything happening today. ${
+      hasMoney(d) ? `${MONEY_IN_BRIEF} ` : ""
+    }${
       triggers.length ? `These checks fired, so lead with them:\n${firedLines(triggers)}\n` : "No caution checks fired.\n"
     }Format: 3-6 short lines, plain text. Sleep against their usual first, then anything worth watching${d.calendar ? " (including what's on today)" : ""}, then one suggestion for the day. State only what the tool results show: no streaks, trends or "usual" the data doesn't cover (with one night recorded, there is no pattern yet).`,
     now,
