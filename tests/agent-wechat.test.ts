@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { AgentResponder, approvalBubble, recentHistory, toBubbles } from "../src/agent/wechat.ts";
+import { AgentResponder, answerOf, approvalBubble, recentHistory, toBubbles } from "../src/agent/wechat.ts";
 import type { Decision } from "../src/agent/approvals.ts";
 import type { LoopResult } from "../src/agent/loop.ts";
 import type { AgentMessage } from "../src/agent/model.ts";
@@ -84,84 +84,90 @@ async function shownIn(r: AgentResponder) {
   return turn;
 }
 
-test("a proposal is followed by code's own request, and approving needs 确认 in the next message", async () => {
+test("a short yes or no, and only that, answers the waiting request", () => {
+  for (const yes of ["好", "好的！", "可以", "买吧", "OK.", "yes", "👍"]) expect(answerOf(yes)).toBe("approve");
+  for (const no of ["算了", "不要", "不买。", "No"]) expect(answerOf(no)).toBe("reject");
+  for (const other of ["好累", "可以便宜点吗", "买什么", "yes but later", ""]) expect(answerOf(other)).toBeNull();
+});
+
+test("a proposal is followed by code's own request, and 好 approves it", async () => {
   const pending = approval();
-  const { r, decided } = responder({ answers: [done("可以买一份恢复计划，5 美分。")], proposed: [pending], stored: pending });
+  const { r, decided, asked } = responder({ answers: [done("可以买一份恢复计划，5 美分。")], proposed: [pending], stored: pending });
   const proposal = await shownIn(r);
   expect(proposal.reply.bubbles).toEqual(["可以买一份恢复计划，5 美分。", approvalBubble(pending)]);
   expect(proposal.reply.bubbles[1]).toContain(pending.summary);
 
-  const asking = await r.handle({ text: "/approve 7" });
-  expect(asking.reply.bubbles[0]).toContain("确认");
-  expect(decided).toEqual([]);
-  const paid = await r.handle({ text: "确认" });
+  const paid = await r.handle({ text: "好的！" });
   expect(decided).toEqual([[7, "approve"]]);
   expect(paid.reply.bubbles[0]).toMatch(/^✅ 已批准/);
+  expect(asked).toHaveLength(1); // the yes never went to the model
 });
 
-test("anything but 确认 cancels, a reject needs no confirmation, and the model hears the outcome afterwards", async () => {
+test("算了 rejects, anything longer goes to the model with the request still waiting, and the model hears the outcome", async () => {
   const pending = approval();
   const { r, asked, decided } = responder({ proposed: [pending], stored: pending });
   await shownIn(r);
-  await r.handle({ text: "/approve 7" });
-  expect((await r.handle({ text: "算了" })).reply.bubbles[0]).toContain("没有批准");
+  await r.handle({ text: "这个计划里有什么" });
+  expect(asked).toHaveLength(2);
   expect(decided).toEqual([]);
-  await r.handle({ text: "/reject 7" });
+  await r.handle({ text: "算了" });
   expect(decided).toEqual([[7, "reject"]]);
-  expect(asked).toHaveLength(1); // only the proposal went to the model
   await r.handle({ text: "买了吗" });
   expect(JSON.stringify(asked.at(-1)?.history)).toContain("已拒绝");
 });
 
-test("only requests shown in this chat can be approved here, and their own text never approves anything", async () => {
+test("with nothing waiting, 好 is just a message for the model", async () => {
+  const { r, asked, decided } = responder();
+  await r.handle({ text: "好" });
+  expect(asked.map((a) => a.text)).toEqual(["好"]);
+  expect(decided).toEqual([]);
+});
+
+test("only requests shown in this chat can be answered here, and the chat's own bubbles never approve anything", async () => {
   const pending = approval();
   const elsewhere = responder({ stored: pending });
   expect((await elsewhere.r.handle({ text: "/approve 7" })).reply.bubbles[0]).toContain("没有 #7");
   expect(elsewhere.decided).toEqual([]);
 
-  const { r, decided, asked } = responder({ proposed: [pending], stored: pending });
+  const { r, decided } = responder({ proposed: [pending], stored: pending });
   const turn = await shownIn(r);
-  // The chat's own bubbles, read back: none is a command on its own.
   for (const bubble of turn.reply.bubbles) await r.handle({ text: bubble });
-  const prompt = await r.handle({ text: "/approve 7" });
-  await r.handle({ text: prompt.reply.bubbles[0] });
   expect(decided).toEqual([]);
-  expect(asked.length).toBeGreaterThan(1);
-});
-
-test("a request whose bubble didn't go out waits for the next reply, and can't be approved before", async () => {
-  const pending = approval();
-  const { r, decided } = responder({ answers: [done("好"), done("还有别的吗")], proposed: [pending], stored: pending });
-  const first = await r.handle({ text: "帮我买个恢复计划" });
-  first.commit(first.reply.bubbles.slice(0, 1));
-  expect((await r.handle({ text: "/approve 7" })).reply.bubbles[0]).toContain("没有 #7");
-  const next = await r.handle({ text: "嗯" });
-  expect(next.reply.bubbles.at(-1)).toBe(approvalBubble(pending));
-  next.commit(next.reply.bubbles);
-  await r.handle({ text: "/approve 7\n确认" });
+  await r.handle({ text: "/approve 7" });
   expect(decided).toEqual([[7, "approve"]]);
 });
 
-test("/approve and 确认 sent together still work; draft mode approves nothing", async () => {
+test("a request whose bubble didn't go out waits for the next reply, and a yes before that is just a message", async () => {
   const pending = approval();
-  const together = responder({ proposed: [pending], stored: pending });
-  await shownIn(together.r);
-  const both = await together.r.handle({ text: "/approve 7\n确认" });
-  expect(both.reply.bubbles).toHaveLength(2);
-  expect(together.decided).toEqual([[7, "approve"]]);
+  const { r, decided, asked } = responder({ answers: [done("收到"), done("嗯？")], proposed: [pending], stored: pending });
+  const first = await r.handle({ text: "帮我买个恢复计划" });
+  first.commit(first.reply.bubbles.slice(0, 1));
+  const next = await r.handle({ text: "可以" });
+  expect(decided).toEqual([]);
+  expect(asked).toHaveLength(2);
+  expect(next.reply.bubbles.at(-1)).toBe(approvalBubble(pending));
+  next.commit(next.reply.bubbles);
+  await r.handle({ text: "可以" });
+  expect(decided).toEqual([[7, "approve"]]);
+});
 
+test("draft mode approves nothing", async () => {
+  const pending = approval();
   const draft = responder({ proposed: [pending], stored: pending, approvals: false });
   await shownIn(draft.r);
-  expect((await draft.r.handle({ text: "/approve 7\n确认" })).reply.bubbles[0]).toContain("草稿模式");
+  expect((await draft.r.handle({ text: "好" })).reply.bubbles[0]).toContain("草稿模式");
   expect(draft.decided).toEqual([]);
 });
 
-test("an expired request isn't offered for confirmation", async () => {
+test("an expired request isn't waiting: 好 goes to the model, and /approve is told it expired", async () => {
   const expired = approval({ expiresAt: new Date(NOW.getTime() - 1).toISOString() });
-  const { r, decided } = responder({ proposed: [expired], stored: expired });
+  const { r, decided, asked } = responder({ proposed: [expired], stored: expired });
   await shownIn(r);
+  await r.handle({ text: "好" });
+  expect(decided).toEqual([]);
+  expect(asked.at(-1)?.text).toBe("好");
   await r.handle({ text: "/approve 7" });
-  expect(decided).toEqual([[7, "approve"]]); // decide() reports it expired; no 确认 step
+  expect(decided).toEqual([[7, "approve"]]); // decide() reports it expired
 });
 
 test("a failed run still shows a request it proposed", async () => {
