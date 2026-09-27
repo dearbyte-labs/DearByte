@@ -35,7 +35,7 @@ flowchart LR
     News[Newsroom feeds · SEC EDGAR]
     Seller[x402 seller<br/>Base Sepolia]
     LLM[Claude · DeepSeek]
-    MindGo[MindGo API<br/>planned: read-only MCP]
+    MindGo[MindGo API<br/>read-only MCP]
   end
 
   CLI --> Loop
@@ -49,7 +49,7 @@ flowchart LR
   Tools --> Cal
   Tools --> News
   Tools --> Appr --> Pay --> Seller
-  Tools -.-> MindGo
+  Tools --> MindGo
   Loop --> Store
   Sched --> Store
   Pay --> Store
@@ -145,7 +145,7 @@ and more channels arrive.
 | 5 | **Split `agent-cli.ts`** | 515 lines of wiring plus every command; `tools/demo.ts` repeats the wiring | `src/app.ts` builds the store, models, tools and channels once; `src/commands/*.ts` hold one command each; the demo reuses `app.ts` |
 | 6 | **Split the store** | `store.ts` is 755 lines serving both the companion and the agent; schema changes are ad hoc | A repository per area (alerts, approvals, purchases, health, news), versioned migrations, and the same SQLite file |
 | 7 | **Separate the agent's memory from the companion's** | The agent reads 小拜's facts; only `style` facts are filtered out | A memory namespace per product, or move the companion to DearByte-gf and give the agent its own memory |
-| 8 | **Money through MindGo, read-only** | FIRE uses typed-in monthly numbers; MindGo already has real spending, terms and goals | A read-only MCP endpoint in MindGo with a revocable personal token; tools return term totals and goal progress, not raw transactions; `finance.json` keeps age and targets |
+| 8 | **Money through MindGo, read-only** (built: MindGo `POST /mcp`, DearByte `src/finance/mindgo.ts`) | FIRE used typed-in monthly numbers; MindGo already has real spending, terms and goals | A read-only MCP endpoint in MindGo with a revocable personal token; tools return term totals and goal progress, not raw transactions; `finance.json` keeps age and targets. Still open: MindGo is wired in `toolset.ts` like the others, so item 3 matters more now |
 | 9 | **Scenario evals for personas and rules** | CI checks a pack's text, not how it behaves; alert wording has no regression test | A fixed set of scenarios (a caution, a purchase approval, a distressed user, a what-if about retiring) run against each persona with a cheap model, checked by code where possible |
 | 10 | **Move the companion out** | Two products in one repo blur the pitch and the dependencies (WeChat automation, Accessibility) | Move 小拜 and `native/wechat-desktop` to DearByte-gf; share the model layer as a package if needed |
 
@@ -155,6 +155,6 @@ and more channels arrive.
 | --- | --- | --- | --- |
 | Health | Daily summaries in `data/` | The numbers a request uses | Phone → your own Worker (dearbyte-bridge) |
 | Calendar | Everything; only titles and times are read | Titles and times a request uses | — |
-| Money | `finance.json` | The FIRE plan's numbers when you ask about money | MindGo (planned) is your own app |
+| Money | `finance.json` | The FIRE plan's numbers, and MindGo's term totals and goals, when a request uses them | DearByte reads totals from your own MindGo with a read-only token; no transactions or descriptions leave MindGo |
 | Alerts and approvals | `data/` | — | Telegram's servers carry the messages |
 | Wallet key | `.env` | Never | Signs only approved payments |

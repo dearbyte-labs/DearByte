@@ -1,14 +1,16 @@
 // Which tools the agent gets, from what is set up: health tools when
 // HEALTH_MCP_URL is set, news when there's a watchlist, buying when there's a
 // wallet, the calendar when it can be read, the FIRE plan when there's a
-// finance profile, memory tools always
+// finance profile, MindGo's money tools when MINDGO_MCP_URL is set, memory tools always
 // (they report when memory is off).
 
 import { z } from "zod";
 import { localDate } from "../companion/time.ts";
 import type { CalendarSource } from "../calendar/mac.ts";
 import { calendarTools } from "../calendar/tools.ts";
+import type { MindgoConfig } from "../config.ts";
 import type { FinanceProfile } from "../finance/config.ts";
+import { MindgoClient, mindgoTools } from "../finance/mindgo.ts";
 import { financeTools } from "../finance/tools.ts";
 import { HealthMcpClient } from "../health/mcp-client.ts";
 import { healthTools } from "../health/tools.ts";
@@ -51,11 +53,15 @@ export function agentToolset(o: {
   calendar?: CalendarSource | null;
   /** The FIRE profile, when finance.json exists. */
   finance?: FinanceProfile | null;
+  /** MindGo's MCP endpoint, when it's set up. */
+  mindgo?: MindgoConfig | null;
 }): {
   tools: ToolRegistry;
   health: boolean;
   /** The bridge client, when health is set up. */
   bridge: HealthMcpClient | null;
+  /** The MindGo client, when money is set up. */
+  money: MindgoClient | null;
 } {
   const tools = [...memoryTools(o.store, o.timeZone)];
   const bridge = o.healthMcpUrl ? new HealthMcpClient(o.healthMcpUrl) : null;
@@ -63,6 +69,8 @@ export function agentToolset(o: {
   if (o.calendar) tools.push(...calendarTools(o.calendar, { timeZone: o.timeZone }));
   if (o.watchlist) tools.push(...watchlistTools(o.store, o.watchlist));
   if (o.wallet) tools.push(...walletTools(o.wallet));
-  if (o.finance) tools.push(...financeTools(o.finance));
-  return { tools: new ToolRegistry(tools), health: Boolean(bridge), bridge };
+  const money = o.mindgo ? new MindgoClient(o.mindgo) : null;
+  if (money) tools.push(...mindgoTools(money));
+  if (o.finance) tools.push(...financeTools(o.finance, money));
+  return { tools: new ToolRegistry(tools), health: Boolean(bridge), bridge, money };
 }

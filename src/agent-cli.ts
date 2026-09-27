@@ -38,7 +38,7 @@ import { checkWatchlist, type WatchlistDeps, type WatchOutcome } from "./watchli
 import { loadWatchlist } from "./watchlist/config.ts";
 import { loadFinance, withChanges } from "./finance/config.ts";
 import { formatPlan, parseWhatIf } from "./finance/report.ts";
-import { toInput } from "./finance/tools.ts";
+import { describeSource, toInput, withMindgo } from "./finance/tools.ts";
 import { appendFileSync, chmodSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createPublicClient, erc20Abi, http } from "viem";
@@ -84,6 +84,8 @@ const watchlist = loadedWatchlist && !("problem" in loadedWatchlist) ? loadedWat
 const loadedFinance = loadFinance(config.financePath);
 if (loadedFinance && "problem" in loadedFinance && command !== "fire") console.error(dim(`Finance profile ignored: ${loadedFinance.problem}`));
 const finance = loadedFinance && !("problem" in loadedFinance) ? loadedFinance : null;
+if (config.mindgo && "problem" in config.mindgo) console.error(dim(`MindGo ignored: ${config.mindgo.problem}`));
+const mindgo = config.mindgo && !("problem" in config.mindgo) ? config.mindgo : null;
 if (config.telegram && "problem" in config.telegram) fail(config.telegram.problem);
 const telegramSetup = config.telegram;
 /** Telegram, once both the token and the chat are known. */
@@ -101,7 +103,7 @@ const wallet: WalletDeps | null = config.wallet
   : null;
 /** The Mac's calendars (iCloud keeps them in sync with the iPhone). */
 const calendar = config.calendar ? new MacCalendar() : null;
-const { tools, health, bridge } = agentToolset({ store, timeZone: config.timeZone, healthMcpUrl: config.healthMcpUrl, watchlist, wallet, calendar, finance });
+const { tools, health, bridge, money } = agentToolset({ store, timeZone: config.timeZone, healthMcpUrl: config.healthMcpUrl, watchlist, wallet, calendar, finance, mindgo });
 const system = agentSystemPrompt(ROOT, persona);
 
 /** What each kind of approval does once approved. A kind without a handler can't be approved. */
@@ -175,6 +177,7 @@ function status(): void {
     }`,
   );
   console.log(`Finance: ${finance ? `FIRE plan from finance.json (${finance.currency}) · npm run agent -- fire` : "no profile (copy finance.example.json to finance.json)"}`);
+  console.log(`Money:   ${money ? "MindGo connected, read-only (MINDGO_MCP_URL)" : "MindGo not connected (add MINDGO_MCP_URL and MINDGO_TOKEN; see docs/agent-guide.md)"}`);
   console.log(
     `Wallet:  ${
       wallet ? `testnet, ${wallet.wallet.sellers.length} approved seller${wallet.wallet.sellers.length === 1 ? "" : "s"} · npm run agent -- wallet` : "not set up (npm run agent -- wallet new)"
@@ -441,8 +444,10 @@ async function main(): Promise<void> {
     if (!finance) fail("No finance profile: copy finance.example.json to finance.json and put in your numbers.");
     const change = parseWhatIf(rest);
     if ("problem" in change) fail(change.problem);
-    const plan = withChanges(finance, change);
+    const { profile, source } = await withMindgo(finance, money);
+    const plan = withChanges(profile, change);
     if ("problem" in plan) fail(plan.problem);
+    console.log(dim(`Monthly numbers: ${describeSource(source)}\n`));
     console.log(formatPlan(plan, toInput(plan)));
     return;
   }
