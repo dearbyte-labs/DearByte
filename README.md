@@ -101,6 +101,7 @@ Then use the agent itself (`npm run agent` lists every command):
 npm run agent -- status     # which models, tools and limits are active
 npm run agent -- chat       # talk to it; tools appear as you set them up
 npm run agent -- watch      # always on: morning brief, caution alerts, news
+npm run agent -- wechat     # talk to it in WeChat, in Mandarin (see the companion section for setup)
 ```
 
 To see all of it at once, `npm run demo` runs the three parts in order: a morning brief, a news check and an approved purchase. It uses your real setup where you have one, and sample data where you don't.
@@ -133,6 +134,7 @@ All settings go in `.env`.
 | `DEARBYTE_MAX_PURCHASE` | `0.25` | USD limit per purchase |
 | `DEARBYTE_MAX_DAY` | `1` | USD limit per day |
 | `TELEGRAM_CHAT_ID` | — | Your chat with the bot; `npm run agent -- telegram` finds it. Only this chat can use the buttons |
+| `DEARBYTE_WECHAT_PERSONA` | `xiaobai` | The persona the agent uses in WeChat (`npm run agent -- wechat`) |
 
 A model without a known price is refused, so the spending caps always work.
 
@@ -227,6 +229,8 @@ npm run companion -- --fake  # no model calls; replies labelled fake
 ```
 
 The WeChat connection drives WeChat for Mac through macOS Accessibility. That isn't allowed by Tencent's terms and the account may be restricted, so use a test account, never your main one. Setup is in the [Chinese README](README.zh-CN.md) and the [operations guide](docs/guide.en.md).
+
+The same WeChat setup can carry the agent instead of the companion: `npm run agent -- wechat` (`--draft` to show replies without sending). It answers in Mandarin as 小拜, with every tool the agent has: health, calendar, money, news and the wallet. A purchase request is written by code into the chat; answer `/approve N`, then `确认`, or `/reject N` (Telegram's buttons work too). It shares the companion's lock, so only one of them answers the chat at a time.
 
 ## Documentation
 

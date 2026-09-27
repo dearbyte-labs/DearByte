@@ -2,9 +2,8 @@
 // Polls the chat through the Accessibility helper, turns new rows from the
 // user into messages for the reply loop, and types the replies back.
 
-import type { Companion } from "../../companion/companion.ts";
 import type { Initiative } from "../../companion/companion.ts";
-import { mergeIncoming, ReplyLoop, type Incoming, type InitiateResult, type ReplyEvent, type SendResult } from "../reply-loop.ts";
+import { mergeIncoming, ReplyLoop, type Incoming, type InitiateResult, type ReplyEvent, type Responder, type SendResult } from "../reply-loop.ts";
 import { HelperError, type WechatUi } from "./helper.ts";
 import type { PhotoFolder } from "./photos.ts";
 import { bubbleKey, bubbleLabel, describeOther, newRows, parseRow, rememberRows } from "./rows.ts";
@@ -70,7 +69,8 @@ export class DesktopChannel {
   constructor(
     private readonly deps: {
       ui: WechatUi;
-      companion: Companion;
+      /** 小拜 the companion, or the agent. */
+      companion: Responder;
       /** Names the chat 小拜 answers may show in WeChat (a remark, a nickname, old names). */
       names: string[];
       photos: PhotoFolder | null;

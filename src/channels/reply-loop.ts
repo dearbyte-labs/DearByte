@@ -1,8 +1,9 @@
 // Channel-independent reply loop: queue incoming messages, merge a burst into
-// one turn, load its photo, ask the companion, and send the bubbles with
-// pauses in between. The WeChat desktop and ClawBot channels both feed it.
+// one turn, load its photo, ask the responder (the companion, or the agent),
+// and send the bubbles with pauses in between. The WeChat desktop and ClawBot
+// channels both feed it.
 
-import type { Companion, Initiative, TurnResult } from "../companion/companion.ts";
+import type { Initiative } from "../companion/companion.ts";
 import { FALLBACK_REPLY } from "../companion/output.ts";
 import type { ImageInput } from "../domain.ts";
 import { imageFromBytes } from "../media/images.ts";
@@ -12,11 +13,23 @@ const BURST_WINDOW_MS = 1_000;
 
 export type Incoming<Ref> = { text: string; image: Ref | null };
 
+/** One answered turn: the bubbles to send, and what to keep once they're sent. */
+export type ReplyTurn = {
+  reply: { bubbles: string[] };
+  /** Stores only the bubbles that reached the chat. */
+  commit: (sent: string[]) => unknown;
+  /** Background work the turn started (the companion's memory extraction). */
+  memory: Promise<unknown>;
+};
+
+/** Whoever answers: 小拜 the companion, or DearByte's agent (src/agent/wechat.ts). */
+export type Responder = { handle(input: { text: string; image?: ImageInput }): Promise<ReplyTurn> };
+
 export type ReplyEvent =
   | { type: "inbound"; text: string; image: boolean; merged: number }
   | { type: "sent"; bubble: string }
   | { type: "drafted"; bubble: string }
-  | { type: "turn"; turn: TurnResult }
+  | { type: "turn"; turn: ReplyTurn }
   | { type: "initiated"; reason: string }
   | { type: "error"; message: string };
 
@@ -72,7 +85,7 @@ export class ReplyLoop<M extends Incoming<unknown>> {
 
   constructor(
     private readonly deps: {
-      companion: Companion;
+      companion: Responder;
       outlet: Outlet<M>;
       onEvent?: (event: ReplyEvent) => void;
       sleep?: (ms: number) => Promise<void>;
