@@ -48,7 +48,7 @@ DearByte is early and built in the open. All of Phase 1 is on `master`, with 319
 | Company watchlist: official newsroom feeds and SEC filings, screened against what you care about | **Works**, tested live on real feeds |
 | FIRE plan: your road to financial independence (4% rule and die-with-zero numbers, earliest retirement age, net worth by age) from `finance.json`, with what-ifs | **Works**; the numbers come from code, the model only explains them |
 | Money from MindGo, the budgeting app: this term's spending by category, pace against last term, goals, through a read-only token | **Works**, live; totals and categories only, never single transactions |
-| Testnet wallet: the agent proposes a paid service, you approve, it pays within a cap, and you get a receipt | **Works** with x402 on Base Sepolia, tested live against the example seller in dev mode; an on-chain payment needs test USDC from the faucet |
+| Testnet wallet: the agent proposes a paid service, you approve, it pays within a cap, and you get a receipt | **Works** with x402 on Base Sepolia, tested live on chain: approved in Telegram, 0.05 test USDC paid |
 
 ## Roadmap
 

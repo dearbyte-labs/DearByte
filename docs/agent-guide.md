@@ -11,9 +11,9 @@ This guide covers the personal agent: health, calendar, caution alerts and the m
 - MindGo money (read-only);
 - Claude Opus as the brain with DeepSeek as the worker;
 - the agent in WeChat, in Mandarin;
-- the wallet's full flow (proposal, approval, receipt) against the example seller.
+- the wallet's full flow on chain: approved in Telegram, then 0.05 test USDC paid on Base Sepolia.
 
-Still to test live: an on-chain testnet payment, and iMessage. The [checklist](#live-test-checklist) below covers each part.
+Still to test live: iMessage. The [checklist](#live-test-checklist) below covers each part.
 
 ## Setup, in order
 
