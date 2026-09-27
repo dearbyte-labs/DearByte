@@ -32,19 +32,20 @@ Most AI assistants run on someone else's servers, and none of them know how you 
 
 ## Status
 
-DearByte is early and built in the open. All of Phase 1 is on `master` (248 offline tests). What works today and what's coming:
+DearByte is early and built in the open. All of Phase 1 is on `master`, with 289 offline tests. What works today and what's coming:
 
 | Part | Status |
 | --- | --- |
 | Agent core: tool loop, validated tools, Claude or DeepSeek as "brain" and "worker" tiers | **Works**, tested offline and with live DeepSeek runs |
 | Spending controls: per-run and weekly caps, a usage log of every model call | **Works** |
-| English persona, plus the opt-in Chinese Xiaobai pack | **Works** |
+| Persona packs: English DearByte, the opt-in Chinese Xiaobai, and any the community adds ([how](docs/personas.md)) | **Works**, each pack checked in CI |
 | Chat companion in the terminal and in WeChat (Xiaobai, Chinese) with memory and proactive check-ins | **Works**, see [the companion](#the-chinese-companion-xiaobai) |
 | Apple Watch and Apple Health data, through [dearbyte-bridge](https://github.com/dearbyte-labs/dearbyte-bridge) | **Works** with the bridge's test data; a live test with a real iPhone is next |
-| Calendar awareness: your Apple Calendar events (read on the Mac, which iCloud keeps in sync with your iPhone), in the brief and in caution alerts | **Works** on macOS, in tests and with a sample day; a live test on your calendar is next |
+| Calendar awareness: your Apple Calendar events (read on the Mac, which iCloud keeps in sync with your iPhone), in the brief and in caution alerts | **Works** on macOS, tested live on a real calendar |
 | Caution alerts and a morning brief, judged against your own normal sleep, resting heart rate and HRV, and what's on your calendar today | **Works** |
 | Telegram for alerts, a 👍/👎 on every alert, and Approve/Reject buttons | **Works** in tests; a live test with a real bot is next |
 | Company watchlist: official newsroom feeds and SEC filings, screened against what you care about | **Works**, tested live on real feeds |
+| FIRE plan: your road to financial independence (4% rule and die-with-zero numbers, earliest retirement age, net worth by age) from `finance.json`, with what-ifs | **Works**; the numbers come from code, the model only explains them |
 | Testnet wallet: the agent proposes a paid service, you approve, it pays within a cap, and you get a receipt | **Works** with x402 on Base Sepolia, tested live against the example seller in dev mode; an on-chain payment needs test USDC from the faucet |
 
 ## Roadmap
@@ -61,6 +62,7 @@ DearByte is early and built in the open. All of Phase 1 is on `master` (248 offl
 **Phase 2: daily use, measured**
 - Two weeks of real use with feedback on every alert; measure precision, missed events, delay and cost per month
 - Calendar awareness on the Mac (done early, see Status); an English app UI and more news sources
+- Money: MindGo, the budgeting app, connected through a read-only MCP endpoint, so the FIRE plan uses your real spending and saving, and DearByte speaks up when spending runs ahead of the term's pace or a goal falls behind
 - Approving purchases from the Apple Watch (needs a paid Apple Developer account)
 
 **Later**
@@ -122,6 +124,7 @@ All settings go in `.env`.
 | `TELEGRAM_BOT_TOKEN` | — | Your bot's token from @BotFather. Secret: whoever has it controls the bot |
 | `SEC_CONTACT_EMAIL` | — | SEC asks automated clients for a contact email; without it the watchlist reads newsrooms only |
 | `DEARBYTE_WATCHLIST` | `watchlist.json` | Where your watchlist is |
+| `DEARBYTE_FINANCE` | `finance.json` | Where your FIRE profile is (copy `finance.example.json`) |
 | `DEARBYTE_CALENDAR` | on (macOS) | `off` stops DearByte reading your calendar. `npm run agent -- calendar` asks macOS for access and lists the next 48 hours |
 | `DEARBYTE_WALLET_KEY` | — | The testnet wallet's key; `npm run agent -- wallet new` creates it and writes it here |
 | `DEARBYTE_SELLERS` | — | Comma-separated seller addresses the wallet may buy from, like `http://127.0.0.1:4021` |
@@ -189,6 +192,7 @@ you ─ CLI / Telegram ─┐
                              ├─ calendar (the Mac's, via EventKit)
                              ├─ memory
                              ├─ company watchlist
+                             ├─ FIRE plan (finance.json; MindGo next)
                              └─ propose_purchase ──► your approval ──► payment code
 ```
 
@@ -200,7 +204,7 @@ you ─ CLI / Telegram ─┐
 ## Data and privacy
 
 - **Your data stays on your machine** in the Git-ignored `data/` folder: memory, chat history, the usage log, daily health summaries, alerts and your ratings, news items, approvals and purchase receipts.
-- **What leaves:** the context of each request goes to the model provider you choose (DeepSeek or Anthropic). Health data goes from your phone to *your own* Cloudflare Worker (dearbyte-bridge), and from there only to clients you give its secret MCP address to, such as DearByte. Briefs, alerts and approval requests you get in Telegram go through Telegram's servers. Your calendar is read on your Mac, titles and times only (never notes, attendees or locations); the titles DearByte uses go to the model provider with the request, like any other context. The watchlist only reads public newsroom feeds and SEC filings.
+- **What leaves:** the context of each request goes to the model provider you choose (DeepSeek or Anthropic). Health data goes from your phone to *your own* Cloudflare Worker (dearbyte-bridge), and from there only to clients you give its secret MCP address to, such as DearByte. Briefs, alerts and approval requests you get in Telegram go through Telegram's servers. Your finance profile stays in `finance.json`; when you ask about it, the plan's numbers go to the model provider with the request. Your calendar is read on your Mac, titles and times only (never notes, attendees or locations); the titles DearByte uses go to the model provider with the request, like any other context. The watchlist only reads public newsroom feeds and SEC filings.
 - **The wallet key** stays in `.env` and is only used to sign payments you approved; it's never sent anywhere or printed.
 - **Memory is inspectable and deletable,** and every stored fact quotes your own words as evidence.
 - **Health:** DearByte uses summaries (last night's sleep, your 7-day average), not raw sample history. It isn't a medical device.
@@ -226,6 +230,7 @@ The WeChat connection drives WeChat for Mac through macOS Accessibility. That is
 
 | Document | Contents |
 | --- | --- |
+| [Architecture](docs/architecture.md) | How DearByte is put together, the rules it follows, and what to improve next |
 | [Persona packs](docs/personas.md) | Choosing a persona, writing your own, and what CI checks |
 | [Agent guide](docs/agent-guide.md) | Setting up health, Telegram, the watchlist and the wallet; every command; a live test checklist |
 | [Operations guide](docs/guide.en.md) | 小拜 companion: commands, proactive messaging, WeChat, configuration, repository layout |

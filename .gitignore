@@ -5,3 +5,4 @@ data/
 /.omc
 node_modules/
 /watchlist.json
+/finance.json

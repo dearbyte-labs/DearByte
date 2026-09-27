@@ -23,6 +23,8 @@ export type Config = {
   wallet: WalletConfig | { problem: string } | null;
   /** Path of watchlist.json (it may not exist). */
   watchlistPath: string;
+  /** Path of finance.json, the FIRE profile (it may not exist). */
+  financePath: string;
   /** Contact email SEC requires from automated clients; filings are skipped without it. */
   secContact: string | null;
   /** Telegram for alerts and approvals: null when not set up; chatId is null until the setup step finds it. */
@@ -68,6 +70,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     calendar: process.platform === "darwin" && merged.DEARBYTE_CALENDAR?.trim().toLowerCase() !== "off",
     wallet: resolveWallet(merged),
     watchlistPath: merged.DEARBYTE_WATCHLIST || join(ROOT, "watchlist.json"),
+    financePath: merged.DEARBYTE_FINANCE || join(ROOT, "finance.json"),
     secContact: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(merged.SEC_CONTACT_EMAIL?.trim() ?? "") ? merged.SEC_CONTACT_EMAIL!.trim() : null,
     telegram: resolveTelegram(merged.TELEGRAM_BOT_TOKEN, merged.TELEGRAM_CHAT_ID),
     dbPath: merged.COMPANION_DB || join(ROOT, "data/companion.sqlite"),

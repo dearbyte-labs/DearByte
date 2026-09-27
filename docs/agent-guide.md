@@ -17,7 +17,8 @@ Each step works without the ones after it. Run `npm run agent -- status` at any 
 | 3. Health | Install the [dearbyte-bridge](https://github.com/dearbyte-labs/dearbyte-bridge) iPhone app and Worker; put the MCP address in `HEALTH_MCP_URL` | Sleep, heart rate and HRV tools; the brief and caution alerts |
 | 4. Telegram | Create a bot with @BotFather; see [Telegram](../README.md#telegram) | Alerts and approvals reach you away from the terminal |
 | 5. Watchlist | Copy `watchlist.example.json` to `watchlist.json`; optionally set `SEC_CONTACT_EMAIL` | Company news, screened against your interests |
-| 6. Wallet | `npm run agent -- wallet new`, then test USDC from [Circle's faucet](https://faucet.circle.com) (Base Sepolia); set `DEARBYTE_SELLERS` | The agent can propose purchases, and you approve them |
+| 6. Money | Copy `finance.example.json` to `finance.json` and put in your numbers | `npm run agent -- fire`, and the agent can answer "when could I retire?" |
+| 7. Wallet | `npm run agent -- wallet new`, then test USDC from [Circle's faucet](https://faucet.circle.com) (Base Sepolia); set `DEARBYTE_SELLERS` | The agent can propose purchases, and you approve them |
 
 Secrets (`HEALTH_MCP_URL`, `TELEGRAM_BOT_TOKEN`, `DEARBYTE_WALLET_KEY`, API keys) go only in `.env`, which Git ignores. Never paste them into chat, issues, commits or screenshots. `wallet new` prints only the address, never the key.
 
@@ -61,6 +62,7 @@ npm run agent -- alerts                   # recent briefs and alerts
 npm run agent -- telegram                 # set up Telegram, or send a test approval
 npm run agent -- calendar                 # allow calendar access; list the next 48 hours
 npm run agent -- news                     # check the company watchlist once
+npm run agent -- fire [--retire 45 ...]   # your FIRE plan; what-ifs: --retire --spend --save --assets --lifespan --return --inflation (percent)
 npm run agent -- wallet [new]             # address, balance, limits, recent purchases
 npm run agent -- approvals                # requests waiting for your yes
 npm run agent -- approve N | reject N     # answer one in the terminal
@@ -123,6 +125,17 @@ Run these once each part is set up. Each should take a few minutes.
 **Claude as the brain (optional, needs `ANTHROPIC_API_KEY`)**
 - [ ] `DEARBYTE_BRAIN=anthropic:claude-opus-5-5 npm run agent -- brief --force` works, and its cost shows in `npm run agent:usage`.
 
+## The FIRE plan
+
+`finance.json` holds your age, when you'd like to stop working, what you own (`netAssets`), and what you save and spend each month, in one currency. Returns (7%), inflation (3%), lifespan (90) and the withdrawal rate (4%) have defaults you can change. Everything is computed in today's money:
+
+- **4% rule number:** 25 years of spending, meant to last indefinitely.
+- **Die-with-zero number:** just enough at your retirement age to keep spending the same until your lifespan, drawing the principal down to nothing. It is smaller than the 4% number and depends on the lifespan, so keep that generous.
+- **Coast number:** with this much today, you could stop saving and still reach the die-with-zero number by your retirement age.
+- **Earliest retirement age, the most you could spend in retirement, and net worth by age,** plus how much more to save when the plan runs short.
+
+Ask what-ifs in the terminal (`npm run agent -- fire --retire 45 --return 5`) or in chat ("what if I retire at 45?"). The agent calls `fire_plan` with the change, and code does the math. It talks about budgets, saving and what the numbers mean, never specific investments.
+
 ## Code layout
 
 ```text
@@ -132,6 +145,7 @@ src/health/             bridge MCP client, daily snapshots and baseline, caution
 src/calendar/           the Mac's calendars (EventKit helper in native/calendar), the get_calendar tool, the hard-event rule
 src/telegram/           Bot API client (long polling) and the handler for button taps
 src/watchlist/          newsroom and SEC sources, screening, news tools
+src/finance/            FIRE math (fire.ts), finance.json, the fire_plan tool and the terminal report
 src/wallet/             limits, x402 quote and payment, purchase proposals and receipts
 examples/seller/        example x402 seller (moving to its own repo)
 personas/               persona packs (docs/personas.md); INDEX.md is generated

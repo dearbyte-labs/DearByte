@@ -1,0 +1,13 @@
+{
+  "currency": "CAD",
+  "age": 22,
+  "retireAge": 50,
+  "lifespan": 90,
+  "netAssets": 15000,
+  "monthlySavings": 1200,
+  "monthlySpend": 2500,
+  "returnRate": 0.07,
+  "inflation": 0.03,
+  "withdrawalRate": 0.04,
+  "goals": "Have the option to stop working by 50, and take a year off to travel before 30."
+}
