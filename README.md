@@ -102,6 +102,7 @@ npm run agent -- status     # which models, tools and limits are active
 npm run agent -- chat       # talk to it; tools appear as you set them up
 npm run agent -- watch      # always on: morning brief, caution alerts, news
 npm run agent -- wechat     # talk to it in WeChat, in Mandarin (see the companion section for setup)
+npm run agent -- imessage -m   # talk to it in iMessage: -m Mandarin, -e English (see below)
 ```
 
 To see all of it at once, `npm run demo` runs the three parts in order: a morning brief, a news check and an approved purchase. It uses your real setup where you have one, and sample data where you don't.
@@ -134,7 +135,8 @@ All settings go in `.env`.
 | `DEARBYTE_MAX_PURCHASE` | `0.25` | USD limit per purchase |
 | `DEARBYTE_MAX_DAY` | `1` | USD limit per day |
 | `TELEGRAM_CHAT_ID` | — | Your chat with the bot; `npm run agent -- telegram` finds it. Only this chat can use the buttons |
-| `DEARBYTE_WECHAT_PERSONA` | `xiaobai` | The persona the agent uses in WeChat (`npm run agent -- wechat`) |
+| `DEARBYTE_WECHAT_PERSONA` | `xiaobai` | The persona the agent uses in Mandarin: WeChat, and iMessage with `-m` |
+| `DEARBYTE_IMESSAGE_TO` | none | The one person the agent answers in iMessage: a phone number or Apple ID email (or pass `--to`) |
 
 A model without a known price is refused, so the spending caps always work.
 
@@ -231,6 +233,18 @@ npm run companion -- --fake  # no model calls; replies labelled fake
 The WeChat connection drives WeChat for Mac through macOS Accessibility. That isn't allowed by Tencent's terms and the account may be restricted, so use a test account, never your main one. Setup is in the [Chinese README](README.zh-CN.md) and the [operations guide](docs/guide.en.md).
 
 The same WeChat setup can carry the agent instead of the companion: `npm run agent -- wechat` (`--draft` to show replies without sending). It answers in Mandarin as 小拜, with every tool the agent has: health, calendar, money, news and the wallet. A purchase request is written by code into the chat; a short yes (`好`, `可以`, `买吧`, `ok`) approves it and a short no (`算了`, `不要`) rejects it. Code matches the whole message against fixed lists, so the model can't approve anything; `/approve N` and `/reject N` work too. Only requests shown in that chat can be approved there; while `watch` runs, Telegram's buttons work too. `--draft` never approves anything. It shares the companion's lock, so only one of them answers the chat at a time.
+
+### iMessage
+
+`npm run agent -- imessage -m` answers in Mandarin as 小拜; `-e` (the default) answers in English as `DEARBYTE_PERSONA`. It uses the Mac's Messages app: it reads new texts from the Messages database and sends replies through AppleScript. It answers one person, set by `DEARBYTE_IMESSAGE_TO` or `--to`, and only in your one-to-one chat with them; texts already there when it starts are never answered. Approvals work as in WeChat: code writes the request, and a short "yes" or "no" (or 好 / 算了) answers it. `--draft` shows replies in the terminal and sends nothing.
+
+Setup, once:
+
+1. Sign in to Messages on this Mac. A separate Apple ID for DearByte works best. Your own also works: text yourself, and replies that come back to you are recognised as the agent's own and not answered.
+2. Give your terminal app Full Disk Access (System Settings → Privacy & Security → Full Disk Access), then restart it. That's what lets it read the Messages database.
+3. The first reply asks to let the terminal control Messages; allow it.
+
+Photos aren't read yet; the agent is told one arrived.
 
 ## Documentation
 

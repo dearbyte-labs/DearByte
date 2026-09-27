@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { AgentResponder, answerOf, approvalBubble, recentHistory, toBubbles } from "../src/agent/wechat.ts";
+import { AgentResponder, answerOf, approvalBubble, chatNote, recentHistory, stopText, toBubbles } from "../src/agent/messaging.ts";
 import type { Decision } from "../src/agent/approvals.ts";
 import type { LoopResult } from "../src/agent/loop.ts";
 import type { AgentMessage } from "../src/agent/model.ts";
@@ -189,4 +189,26 @@ test("a long bubble is cut between whole characters", () => {
   const parts = toBubbles("字".repeat(600) + family + "字");
   expect(parts[0].endsWith("字")).toBe(true);
   expect(parts[1].startsWith(family)).toBe(true);
+});
+
+test("in English, code's own words are English and an English yes approves", async () => {
+  const pending = approval();
+  const decided: Array<[number, string]> = [];
+  const proposed = [pending];
+  const r = new AgentResponder({
+    ask: async () => done("A recovery plan costs 5 cents."),
+    store: { approval: () => pending },
+    decide: async (id, verdict): Promise<Decision> => (decided.push([id, verdict]), { status: "approved", approval: approval({ status: "approved" }), result: "Paid." }),
+    takeProposed: () => proposed.splice(0),
+    lang: "en",
+    now: () => NOW,
+  });
+  const turn = await r.handle({ text: "buy me a recovery plan" });
+  expect(turn.reply.bubbles[1]).toBe(approvalBubble(pending, "en"));
+  expect(turn.reply.bubbles[1]).toMatch(/^I need your OK \(#7\)/);
+  turn.commit(turn.reply.bubbles);
+  expect((await r.handle({ text: "Sure!" })).reply.bubbles).toEqual(["✅ Approved. Paid."]);
+  expect(decided).toEqual([[7, "approve"]]);
+  expect(stopText("weekly_cap", "en")).toMatch(/cap/);
+  expect(chatNote("iMessage", "en")).toMatch(/in iMessage\. Reply in English/);
 });

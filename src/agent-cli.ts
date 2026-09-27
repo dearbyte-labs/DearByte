@@ -17,6 +17,7 @@
 //   npm run agent -- approvals         requests waiting for your yes
 //   npm run agent -- approve|reject N  answer one in the terminal
 //   npm run agent -- wechat [--draft]  talk to the agent in WeChat, in Mandarin
+//   npm run agent -- imessage -m|-e [--to <handle>] [--draft]  talk to it in iMessage, in Mandarin or English
 
 import { createInterface } from "node:readline/promises";
 import Anthropic from "@anthropic-ai/sdk";
@@ -26,7 +27,9 @@ import { localDate } from "./companion/time.ts";
 import { runAgent, type LoopEvent, type LoopResult } from "./agent/loop.ts";
 import type { AgentMessage } from "./agent/model.ts";
 import { agentSystemPrompt, loadPack, withCurrentTime } from "./agent/persona.ts";
-import { AgentResponder, WECHAT_NOTE } from "./agent/wechat.ts";
+import { AgentResponder, chatNote, WECHAT_NOTE, type Lang } from "./agent/messaging.ts";
+import { IMessageChannel, type IMessageEvent } from "./channels/imessage/channel.ts";
+import { openMessagesDb, sendIMessage, validHandle } from "./channels/imessage/messages.ts";
 import { DesktopChannel, type DesktopEvent } from "./channels/desktop/channel.ts";
 import { DesktopHelper } from "./channels/desktop/helper.ts";
 import { loadContacts } from "./contacts.ts";
@@ -72,11 +75,13 @@ const USAGE = `Usage:
   npm run agent -- wallet [new]     the testnet wallet (new: create one)
   npm run agent -- approvals        requests waiting for your yes
   npm run agent -- approve N        approve request N (or: reject N)
-  npm run agent -- wechat [--draft] talk to the agent in WeChat, in Mandarin (--draft: never send)`;
+  npm run agent -- wechat [--draft] talk to the agent in WeChat, in Mandarin (--draft: never send)
+  npm run agent -- imessage -m|-e [--to <phone or email>] [--draft]
+                                    talk to it in iMessage: -m Mandarin (as 小拜), -e English (the default)`;
 
 const config = loadConfig();
 const [command, ...rest] = process.argv.slice(2);
-if (!["ask", "chat", "status", "brief", "check", "watch", "alerts", "telegram", "calendar", "news", "fire", "wallet", "approvals", "approve", "reject", "wechat"].includes(command ?? "")) {
+if (!["ask", "chat", "status", "brief", "check", "watch", "alerts", "telegram", "calendar", "news", "fire", "wallet", "approvals", "approve", "reject", "wechat", "imessage"].includes(command ?? "")) {
   console.log(USAGE);
   process.exit(command ? 1 : 0);
 }
@@ -100,7 +105,7 @@ const telegramSetup = config.telegram;
 /** Telegram, once both the token and the chat are known. */
 const telegram = telegramSetup?.chatId ? { bot: new TelegramBot(telegramSetup.token), chatId: telegramSetup.chatId } : null;
 if (config.wallet && "problem" in config.wallet) fail(config.wallet.problem);
-/** Approvals proposed since WeChat last showed them (only the wechat command reads these). */
+/** Approvals proposed since the chat app last showed them (only the wechat and imessage commands read these). */
 const proposed: Approval[] = [];
 const wallet: WalletDeps | null = config.wallet
   ? {
@@ -111,7 +116,7 @@ const wallet: WalletDeps | null = config.wallet
       // Printed by code, so what you approve is never just the model's retelling.
       announce: (a) => {
         console.log(`\n── Approval #${a.id} ──\n${approvalText(a)}\nTo answer: /approve ${a.id} or /reject ${a.id} in chat, or npm run agent -- approve ${a.id}\n`);
-        if (command === "wechat") proposed.push(a);
+        if (command === "wechat" || command === "imessage") proposed.push(a);
       },
     }
   : null;
@@ -320,27 +325,7 @@ async function wechat(): Promise<void> {
   if ("heldBy" in lock) fail(`Something is already answering WeChat (process ${lock.heldBy}): stop it first, or both would reply.`);
   process.on("exit", lock.release);
 
-  const wechatSystem = `${WECHAT_NOTE}\n\n${agentSystemPrompt(ROOT, wechatPersona)}`;
-  const onEvent = (e: LoopEvent) => console.log(dim(describeEvent(e)));
-  proposed.length = 0;
-  const responder = new AgentResponder({
-    ask: async (history, text) => {
-      const result = await runAgent({
-        model: models.brain,
-        tools,
-        system: wechatSystem,
-        messages: [...history, { role: "user", content: withCurrentTime(text, new Date(), config.timeZone) }],
-        purpose: "wechat",
-        onEvent,
-      });
-      console.log(dim(`$${result.cost.toFixed(5)} · ${result.steps} step${result.steps === 1 ? "" : "s"} · ${result.stop}`));
-      return result;
-    },
-    store,
-    decide: (id, verdict) => decide(store, approvalHandlers, id, verdict, { now: new Date(), via: "wechat" }),
-    takeProposed: () => proposed.splice(0),
-    approvals: !draft,
-  });
+  const responder = chatResponder({ system: `${WECHAT_NOTE}\n\n${agentSystemPrompt(ROOT, wechatPersona)}`, purpose: "wechat", lang: "zh", draft });
 
   const ui = new DesktopHelper();
   const channel = new DesktopChannel({
@@ -350,7 +335,7 @@ async function wechat(): Promise<void> {
     photos: null,
     mode: draft ? "draft" : "auto",
     onEvent: (e: DesktopEvent) => {
-      const line = wechatLine(e);
+      const line = chatLine("wechat", e);
       if (line) console.log(line);
     },
   });
@@ -377,10 +362,95 @@ async function wechat(): Promise<void> {
   await shutdown();
 }
 
-function wechatLine(e: DesktopEvent): string | null {
+/** The agent behind a chat app: the brain, every tool, and approvals answered by code. */
+function chatResponder(o: { system: string; purpose: "wechat" | "imessage"; lang: Lang; draft: boolean }): AgentResponder {
+  const onEvent = (e: LoopEvent) => console.log(dim(describeEvent(e)));
+  proposed.length = 0;
+  return new AgentResponder({
+    ask: async (history, text) => {
+      const result = await runAgent({
+        model: models.brain,
+        tools,
+        system: o.system,
+        messages: [...history, { role: "user", content: withCurrentTime(text, new Date(), config.timeZone) }],
+        purpose: o.purpose,
+        onEvent,
+      });
+      console.log(dim(`$${result.cost.toFixed(5)} · ${result.steps} step${result.steps === 1 ? "" : "s"} · ${result.stop}`));
+      return result;
+    },
+    store,
+    decide: (id, verdict) => decide(store, approvalHandlers, id, verdict, { now: new Date(), via: o.purpose }),
+    takeProposed: () => proposed.splice(0),
+    approvals: !o.draft,
+    lang: o.lang,
+  });
+}
+
+/**
+ * The agent in iMessage, through the Mac's Messages app: -m in Mandarin as the
+ * WeChat persona (小拜), -e in English as DEARBYTE_PERSONA. Answers one person
+ * (--to, or DEARBYTE_IMESSAGE_TO) in their one-to-one chat.
+ */
+async function imessage(): Promise<void> {
+  const flags = rest.filter((a) => a === "-m" || a === "-e" || a === "--mandarin" || a === "--english");
+  if (new Set(flags.map((f) => f.replace(/^--?/, "")[0])).size > 1) fail("Pick one language: -m (Mandarin) or -e (English).");
+  const lang: Lang = flags.some((f) => f === "-m" || f === "--mandarin") ? "zh" : "en";
+  const draft = rest.includes("--draft");
+  const toAt = rest.indexOf("--to");
+  const to = (toAt >= 0 ? rest[toAt + 1] : config.imessageTo) ?? "";
+  if (!to) fail("Who should it answer? Set DEARBYTE_IMESSAGE_TO in .env (your phone number or Apple ID email), or pass --to <handle>.");
+  if (!validHandle(to)) fail(`"${to}" doesn't look like a phone number or an email.`);
+  const personaSetting = lang === "zh" ? config.wechatPersona : config.agentPersona;
+  if (typeof personaSetting !== "string") fail(personaSetting.problem);
+
+  let db;
+  try {
+    db = openMessagesDb();
+  } catch (err) {
+    fail((err as Error).message);
+  }
+  const lock = acquireLock(join(ROOT, "data/imessage.lock"));
+  if ("heldBy" in lock) fail(`Something is already answering iMessage (process ${lock.heldBy}): stop it first, or both would reply.`);
+  process.on("exit", lock.release);
+
+  const responder = chatResponder({ system: `${chatNote("iMessage", lang)}\n\n${agentSystemPrompt(ROOT, personaSetting)}`, purpose: "imessage", lang, draft });
+  const channel = new IMessageChannel({
+    db,
+    send: sendIMessage,
+    responder,
+    handle: to,
+    mode: draft ? "draft" : "auto",
+    attachmentNote: lang === "zh" ? "（用户发了一张图或一个文件，你看不到。）" : "(The user sent a photo or file, which you can't see.)",
+    onEvent: (e: IMessageEvent) => {
+      const line = chatLine("imessage", e);
+      if (line) console.log(line);
+    },
+  });
+  console.log(
+    dim(`DearByte in iMessage · ${tiers.brain.model} · ${lang === "zh" ? "Mandarin" : "English"} · persona ${personaSetting} · answering ${to} · ${draft ? "draft: replies are shown here, never sent" : "replying"} · Ctrl-C to stop`),
+  );
+  const stop = new AbortController();
+  const running = channel.run(stop.signal);
+  spawn("caffeinate", ["-i", "-w", String(process.pid)], { stdio: "ignore" }).on("error", () => {}).unref();
+  let closing: Promise<void> | undefined;
+  const shutdown = () =>
+    (closing ??= (async () => {
+      channel.stopping = true;
+      stop.abort();
+      await running;
+      await channel.settle();
+    })());
+  const interrupt = () => (closing ? process.exit(130) : void shutdown().then(() => process.exit(0)));
+  process.on("SIGINT", interrupt).on("SIGTERM", interrupt);
+  await running;
+  await shutdown();
+}
+
+function chatLine(app: string, e: DesktopEvent | IMessageEvent): string | null {
   switch (e.type) {
     case "inbound":
-      return `wechat › ${e.text || "(no text)"}${e.image ? " [photo]" : ""}`;
+      return `${app} › ${e.text || "(no text)"}${e.image ? " [photo]" : ""}`;
     case "sent":
       return `dearbyte › ${e.bubble}`;
     case "drafted":
@@ -567,6 +637,7 @@ async function main(): Promise<void> {
     return;
   }
   if (command === "wechat") return wechat();
+  if (command === "imessage") return imessage();
   if (command === "status") return status();
   if (command === "alerts") return listAlerts();
   if (command === "brief") return report(await runMorningBrief(scheduledDeps(), { force: rest.includes("--force") }));

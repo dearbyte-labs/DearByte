@@ -35,6 +35,8 @@ export type Config = {
   agentPersona: string | { problem: string };
   /** The persona the agent uses in WeChat (Mandarin by default), or what's wrong with DEARBYTE_WECHAT_PERSONA. */
   wechatPersona: string | { problem: string };
+  /** Who the agent answers in iMessage (a phone number or Apple ID email), or null. */
+  imessageTo: string | null;
   dbPath: string;
   timeZone: string;
   historyMessages: number;
@@ -92,6 +94,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     agentWeeklyCap: nonNegative(merged.DEARBYTE_WEEKLY_CAP, DEFAULT_WEEKLY_CAP),
     agentPersona: resolvePersona(merged.DEARBYTE_PERSONA),
     wechatPersona: resolvePersona(merged.DEARBYTE_WECHAT_PERSONA || WECHAT_PERSONA, "DEARBYTE_WECHAT_PERSONA"),
+    imessageTo: merged.DEARBYTE_IMESSAGE_TO?.trim() || null,
     healthMcpUrl: merged.HEALTH_MCP_URL?.trim() || null,
     calendar: process.platform === "darwin" && merged.DEARBYTE_CALENDAR?.trim().toLowerCase() !== "off",
     wallet: resolveWallet(merged),
