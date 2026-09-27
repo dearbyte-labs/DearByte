@@ -46,4 +46,4 @@ Design reference only. No files are vendored.
 ## ex-skill (前任.skill)
 
 - Source: https://github.com/perkfly/ex-skill (MIT, Copyright (c) 2026 perkfly), revision `c5ece53`
-- Reviewed, not used in code or prompts. Its method (write persona rules as concrete behaviour, use real example lines, measure style from real chat logs) shaped how the examples were rewritten. See [the design note](design/humanlike-replies.md).
+- Reviewed, not used in code or prompts. Its method (write persona rules as concrete behaviour, use real example lines, measure style from real chat logs) shaped how the examples were rewritten.

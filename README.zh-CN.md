@@ -117,7 +117,17 @@ npm run dearbyte
 
 已实现终端聊天、可控记忆、图片输入、主动消息和实验性微信接入。微信文字与图片流程已于 **2026-09-24** 完成实机测试。
 
-DearByte 的个人助理部分（Apple Watch 健康数据、早间简报与提醒、Telegram、公司动态追踪、测试网钱包）已完成第一阶段开发，目前以英文为主，见 [English README](README.md) 和[助理指南（英文）](docs/agent-guide.md)。
+DearByte 的个人助理部分（Apple Watch 健康数据、日历、早间简报与提醒、Telegram、公司动态追踪、MindGo 记账数据、测试网钱包）已完成第一阶段开发，见 [English README](README.md) 和[助理指南（英文）](docs/agent-guide.md)。
+
+助理也可以用中文聊：
+
+```bash
+npm run dearbyte -- wechat        # 在微信里和助理聊，用普通话，还是小拜的语气
+npm run dearbyte -- imessage -m   # 在 iMessage 里聊，-m 普通话，-e 英文
+npm run dearbyte -- help          # 全部命令
+```
+
+需要购买时，代码会把请求写进聊天；回「好」就批准，回「算了」就拒绝。
 
 当前微信模式只支持一个联系人；语音、视频、文件和表情包不能被直接理解。小拜是 AI，不是真人；危机信号检测用于调整回复，不能代替专业帮助或联系紧急服务。
 

@@ -13,6 +13,7 @@ flowchart LR
   subgraph You
     CLI[Terminal<br/>npm run dearbyte -- …]
     TG[Telegram<br/>alerts · 👍/👎 · Approve/Reject]
+    Chat[WeChat · iMessage<br/>questions · yes/no approvals]
   end
 
   subgraph DearByte["DearByte (your Mac)"]
@@ -39,6 +40,8 @@ flowchart LR
   end
 
   CLI --> Loop
+  Chat <--> Loop
+  Chat --> Appr
   TG <--> Appr
   Sched --> Rules --> Loop
   Loop <--> Tiers <--> LLM
@@ -105,6 +108,7 @@ reason written next to it.
 | Wallet | `src/wallet/` | x402 v2 on Base Sepolia: quote → approval → fresh quote → reserve against the daily cap → EIP-3009 signature → receipt |
 | Approvals | `src/agent/approvals.ts`, `src/telegram/inbox.ts` | Pending requests, Approve/Reject from Telegram or the terminal, 15-minute expiry, decided atomically |
 | Telegram | `src/telegram/` | Bot API with long polling; only the configured chat is heard |
+| Chat apps | `src/agent/messaging.ts`, `src/channels/` | The agent in WeChat (Accessibility, Mandarin) or iMessage (the Messages database and AppleScript, `-m` or `-e`). One bound chat. Code writes approval requests into it, and a whole-message yes or no answers them |
 | Store | `src/storage/store.ts` | One SQLite file: messages, facts, settings, usage, health days, alerts, approvals, news items, purchases |
 
 ## How a morning brief happens
@@ -142,10 +146,10 @@ and more channels arrive.
 | 2 | **A report command** | Phase 2's result is measured: precision, coverage, delay, cost, uptime | `npm run dearbyte -- report` from `agent_alerts`, `watch_items`, `agent_usage` and the heartbeat; `/missed` in Telegram |
 | 3 | **Connectors instead of if-chains** | Each data source is wired separately in `toolset.ts`, `status`, `watch` and the demo. MindGo would be the fourth copy | A `Connector` type: `status()`, `tools()`, optional `rules()` and `brief()` parts. Health, calendar, watchlist, finance and MindGo each become one. `toolset`, `status` and `watch` loop over the list |
 | 4 | **One alert policy** | Quiet hours, daily caps, dedupe and "once a day per rule" live in `scheduled.ts` and again in `watchlist/check.ts`; money rules would add a third | A small policy module: every rule returns triggers, and one place applies quiet hours, caps, dedupe and storage |
-| 5 | **Split `agent-cli.ts`** | 515 lines of wiring plus every command; `tools/demo.ts` repeats the wiring | `src/app.ts` builds the store, models, tools and channels once; `src/commands/*.ts` hold one command each; the demo reuses `app.ts` |
+| 5 | **Split `agent-cli.ts`** | About 700 lines of wiring plus every command, including two chat apps; `tools/demo.ts` repeats the wiring | `src/app.ts` builds the store, models, tools and channels once; `src/commands/*.ts` hold one command each; the demo reuses `app.ts` |
 | 6 | **Split the store** | `store.ts` is 755 lines serving both the companion and the agent; schema changes are ad hoc | A repository per area (alerts, approvals, purchases, health, news), versioned migrations, and the same SQLite file |
 | 7 | **Separate the agent's memory from the companion's** | The agent reads 小拜's facts; only `style` facts are filtered out | A memory namespace per product, or move the companion to DearByte-gf and give the agent its own memory |
-| 8 | **Money through MindGo, read-only** (built: MindGo `POST /mcp`, DearByte `src/finance/mindgo.ts`) | FIRE used typed-in monthly numbers; MindGo already has real spending, terms and goals | A read-only MCP endpoint in MindGo with a revocable personal token; tools return term totals and goal progress, not raw transactions; `finance.json` keeps age and targets. Still open: MindGo is wired in `toolset.ts` like the others, so item 3 matters more now |
+| 8 | **Money through MindGo, read-only** (done, live: MindGo `POST /mcp`, DearByte `src/finance/mindgo.ts`) | FIRE used typed-in monthly numbers; MindGo already has real spending, terms and goals | A read-only MCP endpoint in MindGo with a revocable personal token; tools return term totals and goal progress, not raw transactions; `finance.json` keeps age and targets. Still open: MindGo is wired in `toolset.ts` like the others, so item 3 matters more now |
 | 9 | **Scenario evals for personas and rules** | CI checks a pack's text, not how it behaves; alert wording has no regression test | A fixed set of scenarios (a caution, a purchase approval, a distressed user, a what-if about retiring) run against each persona with a cheap model, checked by code where possible |
 | 10 | **Move the companion out** | Two products in one repo blur the pitch and the dependencies (WeChat automation, Accessibility) | Move 小拜 and `native/wechat-desktop` to DearByte-gf; share the model layer as a package if needed |
 
@@ -157,4 +161,5 @@ and more channels arrive.
 | Calendar | Everything; only titles and times are read | Titles and times a request uses | — |
 | Money | `finance.json` | The FIRE plan's numbers, and MindGo's term totals and goals, when a request uses them | DearByte reads totals from your own MindGo with a read-only token; no transactions or descriptions leave MindGo |
 | Alerts and approvals | `data/` | — | Telegram's servers carry the messages |
+| Chat apps | WeChat and Messages keep their own history; DearByte reads only the bound chat | The bound chat's new messages, and the last 8 turns | Tencent or Apple carries the messages, as for any chat |
 | Wallet key | `.env` | Never | Signs only approved payments |

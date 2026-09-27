@@ -2,9 +2,18 @@
 
 # DearByte agent — Setup and testing guide
 
-This guide covers the personal agent: health, caution alerts and the morning brief, Telegram, the company watchlist and the testnet wallet. For 小拜, the Chinese companion, see the [operations guide](guide.en.md).
+This guide covers the personal agent: health, calendar, caution alerts and the morning brief, Telegram, the company watchlist, money, the testnet wallet, and talking to it in WeChat or iMessage. For 小拜, the Chinese companion, see the [operations guide](guide.en.md).
 
-**Status (2026-09-26):** all of Phase 1 is on `master`, and 248 offline tests pass. Watchlist screening has been run live against real feeds with DeepSeek. The wallet's full flow (proposal, approval, receipt) has been run live against the example seller in `--dev` mode. Still to test live: your own Apple Watch data, a real Telegram bot, an on-chain testnet payment, and Claude as the brain. The [checklist](#live-test-checklist) below covers each one.
+**Status (2026-09-27):** all of Phase 1 is on `master`, and 319 offline tests pass. Run live so far:
+- real Apple Watch data and the Mac's calendar;
+- a real Telegram bot;
+- watchlist screening on real feeds;
+- MindGo money (read-only);
+- Claude Opus as the brain with DeepSeek as the worker;
+- the agent in WeChat, in Mandarin;
+- the wallet's full flow (proposal, approval, receipt) against the example seller.
+
+Still to test live: an on-chain testnet payment, and iMessage. The [checklist](#live-test-checklist) below covers each part.
 
 ## Setup, in order
 
@@ -19,6 +28,7 @@ Each step works without the ones after it. Run `npm run dearbyte -- status` at a
 | 5. Watchlist | Copy `watchlist.example.json` to `watchlist.json`; optionally set `SEC_CONTACT_EMAIL` | Company news, screened against your interests |
 | 6. Money | Copy `finance.example.json` to `finance.json` and put in your numbers. Optionally connect MindGo: in MindGo's `backend/`, `npm run access-token -- create <email> DearByte`, then set `MINDGO_MCP_URL` and `MINDGO_TOKEN` | `npm run dearbyte -- fire`, and the agent can answer "when could I retire?". With MindGo, the plan uses your last 12 months of spending and saving, the agent can answer "how am I doing this term?", and the brief flags spending ahead of pace or an overdue goal |
 | 7. Wallet | `npm run dearbyte -- wallet new`, then test USDC from [Circle's faucet](https://faucet.circle.com) (Base Sepolia); set `DEARBYTE_SELLERS` | The agent can propose purchases, and you approve them |
+| 8. Chat apps (optional) | **WeChat:** the companion's WeChat setup ([operations guide](guide.en.md)), then `npm run dearbyte -- wechat`. **iMessage:** Messages signed in on the Mac (a separate Apple ID for DearByte looks best), Full Disk Access for the terminal, `DEARBYTE_IMESSAGE_TO` set to your number, then `npm run dearbyte -- imessage -m` or `-e` | Talk to the agent from your phone. Approve a purchase by replying yes (好) or no (算了) |
 
 Secrets (`HEALTH_MCP_URL`, `MINDGO_TOKEN`, `TELEGRAM_BOT_TOKEN`, `DEARBYTE_WALLET_KEY`, API keys) go only in `.env`, which Git ignores. Never paste them into chat, issues, commits or screenshots. `wallet new` prints only the address, never the key.
 
@@ -66,6 +76,9 @@ npm run dearbyte -- fire [--retire 45 ...]   # your FIRE plan; what-ifs: --retir
 npm run dearbyte -- wallet [new]             # address, balance, limits, recent purchases
 npm run dearbyte -- approvals                # requests waiting for your yes
 npm run dearbyte -- approve N | reject N     # answer one in the terminal
+npm run dearbyte -- wechat [--draft]         # the agent in WeChat, in Mandarin as 小拜
+npm run dearbyte -- imessage -m|-e [--to <handle>] [--draft]   # the agent in iMessage: Mandarin or English
+npm run dearbyte -- help                     # every command
 npm run seller [-- --dev]                 # the example x402 seller on http://127.0.0.1:4021
 npm run demo                              # the three-part demo (see above)
 npm run agent:usage                       # what every model call cost
@@ -128,6 +141,15 @@ Run these once each part is set up. Each should take a few minutes.
 - [ ] Ask for something over `DEARBYTE_MAX_PURCHASE`. It should be refused, with nothing proposed.
 - [ ] Reject a proposal. Nothing should be paid.
 
+**WeChat (needs the companion's WeChat setup)**
+- [ ] `npm run dearbyte -- wechat --draft` prints a Mandarin reply to 「我昨晚睡得如何」 with real numbers, and sends nothing.
+- [ ] Without `--draft`, ask it to buy the recovery plan. Code's request bubble appears; 「好」 approves it and 「算了」 rejects it.
+
+**iMessage (needs Full Disk Access and `DEARBYTE_IMESSAGE_TO`)**
+- [ ] `npm run dearbyte -- imessage -e --draft` prints "Connected", then drafts an English reply to your next text.
+- [ ] Without `--draft`, the reply arrives on your phone and isn't answered again when it echoes back.
+- [ ] With `-m`, the reply is in Mandarin as 小拜.
+
 **Claude as the brain (optional, needs `ANTHROPIC_API_KEY`)**
 - [ ] `DEARBYTE_BRAIN=anthropic:claude-opus-5-5 npm run dearbyte -- brief --force` works, and its cost shows in `npm run agent:usage`.
 
@@ -145,13 +167,16 @@ Ask what-ifs in the terminal (`npm run dearbyte -- fire --retire 45 --return 5`)
 ## Code layout
 
 ```text
-src/agent-cli.ts        the npm run dearbyte -- <command> commands (src/main.ts routes them)
+src/main.ts             npm run dearbyte: a command goes to the agent, none to the companion
+src/agent-cli.ts        the agent's commands
 src/agent/              agent loop, validated tools, model tiers, usage log, approvals, scheduled brief and alerts
+src/agent/messaging.ts  the agent in a chat app: bubbles, history, yes/no approvals, Chinese or English
+src/channels/           the reply loop, WeChat for Mac (desktop/) and iMessage (imessage/)
 src/health/             bridge MCP client, daily snapshots and baseline, caution rules
 src/calendar/           the Mac's calendars (EventKit helper in native/calendar), the get_calendar tool, the hard-event rule
 src/telegram/           Bot API client (long polling) and the handler for button taps
 src/watchlist/          newsroom and SEC sources, screening, news tools
-src/finance/            FIRE math (fire.ts), finance.json, the fire_plan tool and the terminal report
+src/finance/            FIRE math (fire.ts), finance.json, the fire_plan tool, the terminal report, and the MindGo client (mindgo.ts)
 src/wallet/             limits, x402 quote and payment, purchase proposals and receipts
 examples/seller/        example x402 seller (moving to its own repo)
 personas/               persona packs (docs/personas.md); INDEX.md is generated

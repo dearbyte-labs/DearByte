@@ -1,6 +1,6 @@
-# How DearByte works
+# How the companion works
 
-DearByte is 小拜, a Chinese AI companion (傲娇但细心, a tsundere girl) who lives in a real WeChat account. This note explains the whole system:
+小拜 is DearByte's Chinese AI companion (傲娇但细心, a tsundere girl), who lives in a real WeChat account. This note covers the companion; the agent (health, alerts, money, the wallet) is in [architecture.md](architecture.md). It explains:
 - how the WeChat connection works
 - how a reply is made
 - what goes into the prompt
@@ -8,7 +8,7 @@ DearByte is 小拜, a Chinese AI companion (傲娇但细心, a tsundere girl) wh
 - when 小拜 writes first, and how safety is handled
 - which open-source projects shaped it
 
-It's written for someone reading the code for the first time. The details live in the linked design notes.
+It's written for someone reading the code for the first time.
 
 ## The big picture
 
@@ -35,7 +35,7 @@ It's written for someone reading the code for the first time. The details live i
  The model: DeepSeek deepseek-flash by default; any provider in .env
 ```
 
-It's a fixed pipeline, not an "agent": each message goes through the same steps in the same order. That keeps it predictable, cheap and easy to test (about 100 tests, all runnable offline with a fake model).
+It's a fixed pipeline, not an "agent": each message goes through the same steps in the same order. That keeps it predictable, cheap and easy to test (all runnable offline with a fake model).
 
 ## Following one message through every layer
 
@@ -60,7 +60,7 @@ Two other paths use the same layers:
 
 ## 1. The WeChat connection
 
-**Why a real account and desktop automation.** The video needs 小拜 to look like any friend in your chat list, with its own name and avatar. Tencent's official bot API (iLink / 微信 ClawBot) was built first and worked. But the bot always shows up as 「微信 ClawBot」 with the default avatar, and nothing can rename it. So 小拜 is a second WeChat account, logged in on a Mac, and the program operates WeChat for Mac the way a screen reader would. Full reasoning: [wechat-transport.md](design/wechat-transport.md).
+**Why a real account and desktop automation.** The video needs 小拜 to look like any friend in your chat list, with its own name and avatar. Tencent's official bot API (iLink / 微信 ClawBot) was built first and worked. But the bot always shows up as 「微信 ClawBot」 with the default avatar, and nothing can rename it. So 小拜 is a second WeChat account, logged in on a Mac, and the program operates WeChat for Mac the way a screen reader would. (The iLink client is in git history, commit `fe352fd`.)
 
 **Reading.** macOS Accessibility lets a program read other apps' windows as a tree of elements (buttons, text areas, tables). In WeChat for Mac 3.8.4, the open chat is a table described as "Messages". Each row has a title such as:
 
@@ -86,6 +86,12 @@ These all happen in practice, and each once caused a bug that is now covered by 
 Then it fills in the text, presses Return, and confirms that a new `MeSaid:<text>` row appeared. A bubble it can't confirm is reported, never resent, so nothing goes out twice. This works while WeChat sits in the background on another desktop.
 
 **Photos.** WeChat 3.8.4 saves received photos as ordinary JPEGs in a folder for each chat. When a photo row appears, the runner picks the newest new file in that one folder. A photo sent twice is a hard link to the old file with an old date, which is why the check uses the later of the two file timestamps.
+
+**WeChat 4.x** (tested on 4.1.13) changed the layout, and the helper handles both:
+- The message list is `chat_message_list` and the composer `chat_input_field`. Rows carry only the bubble's text, with no sender. So a bubble matching something 小拜 sent in the last 10 minutes is taken as hers, and every other one as yours. This is also why group chats can't be told apart on 4.x.
+- Photos are encrypted on disk. Instead, the helper captures WeChat's own window 1.5 s after a photo row appears and crops out the newest photo. This needs the Screen Recording permission.
+- Two runners once answered each other's bubbles without end. Now one runner holds `data/runner.lock`, and it pauses itself after more than 6 turns in a minute.
+- If the composer is in voice mode, its title changes (for example 「刘瑞克Hold mouse to input by voice」) and replies stop until it's switched back to the keyboard.
 
 **Who 小拜 talks to.** `data/contacts.json` (gitignored) lists the chat, with every name it might show. So when a remark changes, as 「张三」 → 「Alex」 might, replies keep going. Only one contact is supported today. Several would need separate memory per person and a way to switch chats.
 
@@ -199,14 +205,16 @@ npm run dearbyte            # answer the chat in data/contacts.json
 npm run dearbyte -- --film  # a clean log for the camera: messages, 🧠 记住了, ✨ writing first
 npm run dearbyte -- --draft # generate replies without sending
 npm run bakeoff             # score replies for AI tells
-npm test                    # ~100 offline tests
+npm test                    # ~320 offline tests
 ```
 
 Commands while running: `/pause`, `/resume`, `/proactive on|off`, `/memory`, `/memory forget <id>`, `/history clear`, `/status`.
 
+The same connection can carry DearByte's agent instead of the companion: `npm run dearbyte -- wechat`. It answers in Mandarin as 小拜, with the agent's tools (health, calendar, money, news, the wallet). See the [README](../README.md#the-chinese-companion-xiaobai).
+
 ## 9. Good points and downsides
 
-**In short:** as a demo for the video it's strong. It looks and sounds like a real friend, it's cheap, and it's careful with memory and safety. As a product it's fragile: it depends on one Mac, one old WeChat version, and automation Tencent doesn't allow.
+**In short:** as a demo for the video it's strong. It looks and sounds like a real friend, it's cheap, and it's careful with memory and safety. As a product it's fragile: it depends on one Mac, WeChat's on-screen layout (3.8.4 and 4.x so far), and automation Tencent doesn't allow.
 
 **Good points**
 
