@@ -151,4 +151,4 @@ npm run typecheck
 npm run bakeoff  # 在线角色评测，会调用模型并产生费用
 ```
 
-角色评测结果写入 `data/bakeoff/`。更多内部说明见[工作原理（英文）](how-it-works.md)与[微信传输设计（英文）](design/wechat-transport.md)。
+角色评测结果写入 `data/bakeoff/`。更多内部说明见[工作原理（英文）](how-it-works.md)。

@@ -32,20 +32,22 @@ Most AI assistants run on someone else's servers, and none of them know how you 
 
 ## Status
 
-DearByte is early and built in the open. All of Phase 1 is on `master`, with 289 offline tests. What works today and what's coming:
+DearByte is early and built in the open. All of Phase 1 is on `master`, with 319 offline tests. What works today and what's coming:
 
 | Part | Status |
 | --- | --- |
-| Agent core: tool loop, validated tools, Claude or DeepSeek as "brain" and "worker" tiers | **Works**, tested offline and with live DeepSeek runs |
+| Agent core: tool loop, validated tools, Claude or DeepSeek as "brain" and "worker" tiers | **Works**, run live with Claude Opus as the brain and DeepSeek as the worker |
 | Spending controls: per-run and weekly caps, a usage log of every model call | **Works** |
 | Persona packs: English DearByte, the opt-in Chinese Xiaobai, and any the community adds ([how](docs/personas.md)) | **Works**, each pack checked in CI |
 | Chat companion in the terminal and in WeChat (Xiaobai, Chinese) with memory and proactive check-ins | **Works**, see [the companion](#the-chinese-companion-xiaobai) |
-| Apple Watch and Apple Health data, through [dearbyte-bridge](https://github.com/dearbyte-labs/dearbyte-bridge) | **Works** with the bridge's test data; a live test with a real iPhone is next |
+| Apple Watch and Apple Health data, through [dearbyte-bridge](https://github.com/dearbyte-labs/dearbyte-bridge) | **Works**, live with a real iPhone and Apple Watch |
 | Calendar awareness: your Apple Calendar events (read on the Mac, which iCloud keeps in sync with your iPhone), in the brief and in caution alerts | **Works** on macOS, tested live on a real calendar |
 | Caution alerts and a morning brief, judged against your own normal sleep, resting heart rate and HRV, and what's on your calendar today | **Works** |
-| Telegram for alerts, a 👍/👎 on every alert, and Approve/Reject buttons | **Works** in tests; a live test with a real bot is next |
+| Telegram for alerts, a 👍/👎 on every alert, and Approve/Reject buttons | **Works**, live with a real bot |
+| Talk to the agent in WeChat (Mandarin, as 小拜) or iMessage (`-m` Mandarin, `-e` English), with approvals answered by a plain yes or no | WeChat **works** live; iMessage is built and tested offline, and a live test is next |
 | Company watchlist: official newsroom feeds and SEC filings, screened against what you care about | **Works**, tested live on real feeds |
 | FIRE plan: your road to financial independence (4% rule and die-with-zero numbers, earliest retirement age, net worth by age) from `finance.json`, with what-ifs | **Works**; the numbers come from code, the model only explains them |
+| Money from MindGo, the budgeting app: this term's spending by category, pace against last term, goals, through a read-only token | **Works**, live; totals and categories only, never single transactions |
 | Testnet wallet: the agent proposes a paid service, you approve, it pays within a cap, and you get a receipt | **Works** with x402 on Base Sepolia, tested live against the example seller in dev mode; an on-chain payment needs test USDC from the faucet |
 
 ## Roadmap
@@ -62,7 +64,8 @@ DearByte is early and built in the open. All of Phase 1 is on `master`, with 289
 **Phase 2: daily use, measured**
 - Two weeks of real use with feedback on every alert; measure precision, missed events, delay and cost per month
 - Calendar awareness on the Mac (done early, see Status); an English app UI and more news sources
-- Money: MindGo, the budgeting app, connected through a read-only MCP endpoint, so the FIRE plan uses your real spending and saving, and DearByte speaks up when spending runs ahead of the term's pace or a goal falls behind (built early: needs MindGo's `/mcp` deployed)
+- Money: MindGo, the budgeting app, connected through a read-only MCP endpoint, so DearByte answers from your real spending and speaks up when it runs ahead of the term's pace or a goal falls behind (done early, live)
+- Chat apps: the agent in WeChat and iMessage (done early); iMessage as a place for the brief and alerts, next to Telegram
 - Approving purchases from the Apple Watch (needs a paid Apple Developer account)
 
 **Later**
@@ -291,9 +294,9 @@ Photos aren't read yet; the agent is told one arrived.
 | --- | --- |
 | [Architecture](docs/architecture.md) | How DearByte is put together, the rules it follows, and what to improve next |
 | [Persona packs](docs/personas.md) | Choosing a persona, writing your own, and what CI checks |
-| [Agent guide](docs/agent-guide.md) | Setting up health, Telegram, the watchlist and the wallet; every command; a live test checklist |
+| [Agent guide](docs/agent-guide.md) | Setting up health, calendar, Telegram, the watchlist, money, the wallet and the chat apps; a live test checklist |
 | [Operations guide](docs/guide.en.md) | 小拜 companion: commands, proactive messaging, WeChat, configuration, repository layout |
-| [How it works](docs/how-it-works.md) | The companion's reply pipeline, memory and storage |
+| [How the companion works](docs/how-it-works.md) | 小拜's WeChat connection, reply pipeline, memory and safety |
 | [Roadmap](#roadmap) | What's next: the first demo, daily use, then hosting and the marketplace |
 | [中文说明](README.zh-CN.md) | 小拜的中文介绍和快速开始 |
 | [Contributing](CONTRIBUTING.md) | Read before opening a PR; report security issues through [SECURITY.md](SECURITY.md) |
