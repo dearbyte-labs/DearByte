@@ -8,6 +8,7 @@
 // 1. Knows you: the morning brief from last night's sleep, heart rate and HRV against your own normal,
 //    and today's calendar, then a question the agent answers with its health and calendar tools.
 // 2. Watches for you: one watchlist check. The worker screens the news, and the brain writes the message.
+//    When your feeds have nothing from the last 48 hours, the same check runs on a sample newsroom.
 // 3. Spends for you: the agent proposes buying a recovery plan from the example seller. You approve
 //    (here, or with the button in Telegram), it pays, and you get a receipt.
 //
@@ -42,7 +43,7 @@ import { TelegramBot } from "../src/telegram/bot.ts";
 import { feedbackButtons, pollInbox, sendApproval } from "../src/telegram/inbox.ts";
 import { DEFAULT_MAX_PER_DAY, DEFAULT_MAX_PER_PURCHASE, EXPLORER_TX, formatUsd, toUnits, type WalletConfig } from "../src/wallet/config.ts";
 import { purchaseHandler, walletTools, type WalletDeps } from "../src/wallet/purchase.ts";
-import { checkWatchlist } from "../src/watchlist/check.ts";
+import { checkWatchlist, type WatchOutcome } from "../src/watchlist/check.ts";
 import { loadWatchlist, type Watchlist } from "../src/watchlist/config.ts";
 import { watchlistTools } from "../src/watchlist/tools.ts";
 
@@ -258,18 +259,13 @@ function sampleFetch(now: Date): typeof fetch {
     String(url) === SAMPLE_FEED ? new Response(xml, { headers: { "content-type": "application/rss+xml" } }) : new Response("not found", { status: 404 })) as typeof fetch;
 }
 
-async function watchesForYou(): Promise<Watchlist | null> {
-  const loaded = loadWatchlist(config.watchlistPath);
-  const mine = loaded && !("problem" in loaded) ? loaded : null;
-  const live = !allSample && mine;
-  await scene(2, "Watches for you", live ? `official news for ${mine.companies.map((c) => c.name).join(", ")}` : "a SAMPLE newsroom for a made-up company (add watchlist.json for yours)");
-  const watchlist: Watchlist = live
-    ? mine
-    : {
-        interests: mine?.interests ?? "Tell me about AI model launches, leadership changes, earnings and big legal news. Skip marketing, event recaps and small feature tips.",
-        companies: [{ name: "Northwind AI", feeds: [SAMPLE_FEED] }],
-      };
-  console.log(dim(`What you care about: ${watchlist.interests}\n`));
+const SAMPLE_WATCHLIST = (interests?: string): Watchlist => ({
+  interests: interests ?? "Tell me about AI model launches, leadership changes, earnings and big legal news. Skip marketing, event recaps and small feature tips.",
+  companies: [{ name: "Northwind AI", feeds: [SAMPLE_FEED] }],
+});
+
+/** One watchlist check, printed: what was found, what the worker kept or skipped, and why no message went. */
+async function runCheck(watchlist: Watchlist, live: boolean): Promise<WatchOutcome> {
   const tools = new ToolRegistry(watchlistTools(store, watchlist));
   const o = await checkWatchlist({
     store,
@@ -286,11 +282,29 @@ async function watchesForYou(): Promise<Watchlist | null> {
   });
   for (const e of o.errors) console.log(dim(`source failed: ${e}`));
   console.log(dim(`${o.added} items found, ${o.screened} screened by the worker, ${o.relevant} worth a message`));
+  const names = new Set(watchlist.companies.map((c) => c.name));
   for (const i of store.recentWatchItems(new Date(Date.now() - 7 * 86_400_000).toISOString())) {
+    if (!names.has(i.company)) continue;
     if (i.status === "relevant" || i.status === "skipped" || i.status === "sent") console.log(dim(`  ${i.status === "skipped" ? "skip" : "keep"} · ${i.title}${i.reason ? ` · ${i.reason}` : ""}`));
   }
   if (o.message && !o.message.sent) console.log(dim(`No message: ${o.message.reason}${o.message.reason === "quiet hours" ? " (DearByte stays quiet 23:00-07:00)" : ""}`));
-  if (live && !o.screened) console.log(dim("Nothing from the last 48 hours to screen. npm run demo -- --sample shows the flow with a sample newsroom."));
+  return o;
+}
+
+async function watchesForYou(): Promise<Watchlist | null> {
+  const loaded = loadWatchlist(config.watchlistPath);
+  const mine = loaded && !("problem" in loaded) ? loaded : null;
+  const live = !allSample && mine;
+  await scene(2, "Watches for you", live ? `official news for ${mine.companies.map((c) => c.name).join(", ")}` : "a SAMPLE newsroom for a made-up company (add watchlist.json for yours)");
+  const watchlist = live ? mine : SAMPLE_WATCHLIST(mine?.interests);
+  console.log(dim(`What you care about: ${watchlist.interests}\n`));
+  const o = await runCheck(watchlist, Boolean(live));
+  // Company news is often quiet for days. Rather than show an empty screen,
+  // run the same check on the sample newsroom, labelled as sample.
+  if (live && !o.screened) {
+    console.log(dim("\nNothing from the last 48 hours to screen. The same check on a SAMPLE newsroom for a made-up company:\n"));
+    await runCheck(SAMPLE_WATCHLIST(watchlist.interests), false);
+  }
   return watchlist;
 }
 
