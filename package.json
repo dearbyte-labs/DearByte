@@ -9,7 +9,7 @@
   },
   "scripts": {
     "companion": "tsx src/cli.ts",
-    "dearbyte": "tsx src/dearbyte.ts",
+    "dearbyte": "tsx src/main.ts",
     "bakeoff": "tsx tools/bakeoff.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

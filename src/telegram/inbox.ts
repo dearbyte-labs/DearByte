@@ -35,7 +35,7 @@ export async function sendApproval(bot: Pick<TelegramBot, "send">, chatId: numbe
 /** Telegram's popup takes up to 200 characters; cut on code points so an emoji isn't split. */
 const popup = (text: string) => Array.from(text).slice(0, 200).join("");
 
-const HINT = "I'm DearByte. For now I only send alerts and ask for approvals here. To talk with me, run: npm run agent -- chat";
+const HINT = "I'm DearByte. For now I only send alerts and ask for approvals here. To talk with me, run: npm run dearbyte -- chat";
 
 /** Handles one update. Returns a line for the log, or null when there's nothing to say. */
 export async function handleUpdate(d: InboxDeps, u: Update): Promise<string | null> {

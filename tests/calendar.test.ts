@@ -34,7 +34,7 @@ test("helper output: events parsed, titles tidied, times sent without millisecon
 
 test("helper output: no access, a crash or nonsense become a message, never a throw", async () => {
   const notYet = await new MacCalendar(async () => '{"status":"not_determined"}\n').events(at("2026-09-26T13:00:00Z"), at("2026-09-27T13:00:00Z"));
-  expect(notYet).toMatchObject({ status: "unavailable", access: "not_determined", message: expect.stringContaining("npm run agent -- calendar") });
+  expect(notYet).toMatchObject({ status: "unavailable", access: "not_determined", message: expect.stringContaining("npm run dearbyte -- calendar") });
   const crashed = await new MacCalendar(async () => Promise.reject(new Error("spawn failed"))).events(at("2026-09-26T13:00:00Z"), at("2026-09-27T13:00:00Z"));
   expect(crashed).toMatchObject({ status: "unavailable", access: "error" });
   const nonsense = await new MacCalendar(async () => '{"status":"granted","events":"lots"}').events(at("2026-09-26T13:00:00Z"), at("2026-09-27T13:00:00Z"));

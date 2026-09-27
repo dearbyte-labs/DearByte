@@ -20,7 +20,7 @@ npm run personas                       # the packs you have, and whether each pa
 ```
 
 Then set `DEARBYTE_PERSONA=<id>` in `.env` and restart DearByte.
-`npm run agent -- status` shows which persona is active.
+`npm run dearbyte -- status` shows which persona is active.
 
 ## Writing one
 
@@ -28,7 +28,7 @@ Then set `DEARBYTE_PERSONA=<id>` in `.env` and restart DearByte.
    is the folder name: 2 to 32 lowercase letters, digits and dashes, starting
    with a letter (`pirate`, `grandma-es`, `stoic-coach`).
 2. Edit the three files described below.
-3. Try it: `DEARBYTE_PERSONA=<your-id> npm run agent -- chat`, and check it with
+3. Try it: `DEARBYTE_PERSONA=<your-id> npm run dearbyte -- chat`, and check it with
    `npm run personas -- check <your-id>`.
 4. Run `npm run personas -- index` to add your pack to the index, then open a PR
    with all of `personas/<your-id>/` and `personas/INDEX.md`.

@@ -8,17 +8,17 @@ This guide covers the personal agent: health, caution alerts and the morning bri
 
 ## Setup, in order
 
-Each step works without the ones after it. Run `npm run agent -- status` at any point to see which models, tools and limits are active.
+Each step works without the ones after it. Run `npm run dearbyte -- status` at any point to see which models, tools and limits are active.
 
 | Step | What you do | Result |
 | --- | --- | --- |
 | 1. Models | `DEEPSEEK_API_KEY` in `.env` (optionally `ANTHROPIC_API_KEY` and `DEARBYTE_BRAIN=anthropic:claude-opus-5-5`) | `ask` and `chat` work |
-| 2. Calendar (macOS) | `npm run agent -- calendar` and allow access when macOS asks | Today's events in the brief; a caution when a hard day follows a bad night |
+| 2. Calendar (macOS) | `npm run dearbyte -- calendar` and allow access when macOS asks | Today's events in the brief; a caution when a hard day follows a bad night |
 | 3. Health | Install the [dearbyte-bridge](https://github.com/dearbyte-labs/dearbyte-bridge) iPhone app and Worker; put the MCP address in `HEALTH_MCP_URL` | Sleep, heart rate and HRV tools; the brief and caution alerts |
 | 4. Telegram | Create a bot with @BotFather; see [Telegram](../README.md#telegram) | Alerts and approvals reach you away from the terminal |
 | 5. Watchlist | Copy `watchlist.example.json` to `watchlist.json`; optionally set `SEC_CONTACT_EMAIL` | Company news, screened against your interests |
-| 6. Money | Copy `finance.example.json` to `finance.json` and put in your numbers. Optionally connect MindGo: in MindGo's `backend/`, `npm run access-token -- create <email> DearByte`, then set `MINDGO_MCP_URL` and `MINDGO_TOKEN` | `npm run agent -- fire`, and the agent can answer "when could I retire?". With MindGo, the plan uses your last 12 months of spending and saving, the agent can answer "how am I doing this term?", and the brief flags spending ahead of pace or an overdue goal |
-| 7. Wallet | `npm run agent -- wallet new`, then test USDC from [Circle's faucet](https://faucet.circle.com) (Base Sepolia); set `DEARBYTE_SELLERS` | The agent can propose purchases, and you approve them |
+| 6. Money | Copy `finance.example.json` to `finance.json` and put in your numbers. Optionally connect MindGo: in MindGo's `backend/`, `npm run access-token -- create <email> DearByte`, then set `MINDGO_MCP_URL` and `MINDGO_TOKEN` | `npm run dearbyte -- fire`, and the agent can answer "when could I retire?". With MindGo, the plan uses your last 12 months of spending and saving, the agent can answer "how am I doing this term?", and the brief flags spending ahead of pace or an overdue goal |
+| 7. Wallet | `npm run dearbyte -- wallet new`, then test USDC from [Circle's faucet](https://faucet.circle.com) (Base Sepolia); set `DEARBYTE_SELLERS` | The agent can propose purchases, and you approve them |
 
 Secrets (`HEALTH_MCP_URL`, `MINDGO_TOKEN`, `TELEGRAM_BOT_TOKEN`, `DEARBYTE_WALLET_KEY`, API keys) go only in `.env`, which Git ignores. Never paste them into chat, issues, commits or screenshots. `wallet new` prints only the address, never the key.
 
@@ -47,25 +47,25 @@ The demo records everything in `data/demo.sqlite`, recreated on each run, so you
 Two exceptions and one caution:
 - With `--testnet`, purchases and their receipts go to your real database, so real test spending counts toward your daily limit.
 - `--sample` doesn't read your real memory either.
-- If Telegram is set up, stop `npm run agent -- watch` while the demo runs. Otherwise both would answer the same button taps. The demo ignores taps left over from earlier runs.
+- If Telegram is set up, stop `npm run dearbyte -- watch` while the demo runs. Otherwise both would answer the same button taps. The demo ignores taps left over from earlier runs.
 
 ## Commands
 
 ```bash
-npm run agent -- ask "How did I sleep?"   # answer one question
-npm run agent -- chat                     # talk until /quit; /approve N works here
-npm run agent -- status                   # models, tools, limits, spending, alert ratings
-npm run agent -- brief [--force]          # send the morning brief now
-npm run agent -- check                    # run the caution rules once
-npm run agent -- watch                    # keep running (see below)
-npm run agent -- alerts                   # recent briefs and alerts
-npm run agent -- telegram                 # set up Telegram, or send a test approval
-npm run agent -- calendar                 # allow calendar access; list the next 48 hours
-npm run agent -- news                     # check the company watchlist once
-npm run agent -- fire [--retire 45 ...]   # your FIRE plan; what-ifs: --retire --spend --save --assets --lifespan --return --inflation (percent)
-npm run agent -- wallet [new]             # address, balance, limits, recent purchases
-npm run agent -- approvals                # requests waiting for your yes
-npm run agent -- approve N | reject N     # answer one in the terminal
+npm run dearbyte -- ask "How did I sleep?"   # answer one question
+npm run dearbyte -- chat                     # talk until /quit; /approve N works here
+npm run dearbyte -- status                   # models, tools, limits, spending, alert ratings
+npm run dearbyte -- brief [--force]          # send the morning brief now
+npm run dearbyte -- check                    # run the caution rules once
+npm run dearbyte -- watch                    # keep running (see below)
+npm run dearbyte -- alerts                   # recent briefs and alerts
+npm run dearbyte -- telegram                 # set up Telegram, or send a test approval
+npm run dearbyte -- calendar                 # allow calendar access; list the next 48 hours
+npm run dearbyte -- news                     # check the company watchlist once
+npm run dearbyte -- fire [--retire 45 ...]   # your FIRE plan; what-ifs: --retire --spend --save --assets --lifespan --return --inflation (percent)
+npm run dearbyte -- wallet [new]             # address, balance, limits, recent purchases
+npm run dearbyte -- approvals                # requests waiting for your yes
+npm run dearbyte -- approve N | reject N     # answer one in the terminal
 npm run seller [-- --dev]                 # the example x402 seller on http://127.0.0.1:4021
 npm run demo                              # the three-part demo (see above)
 npm run agent:usage                       # what every model call cost
@@ -96,40 +96,40 @@ Everything is in `data/companion.sqlite` (Git-ignored):
 Run these once each part is set up. Each should take a few minutes.
 
 **Health (needs `HEALTH_MCP_URL`)**
-- [ ] `npm run agent -- ask "How did I sleep last night?"` gives numbers that match the Health app.
-- [ ] `npm run agent -- brief --force` writes a brief that compares last night with your normal. Until a few nights are stored, sleep is compared with a default 7 hours.
-- [ ] `npm run agent -- check` either sends nothing or gives a reason you agree with.
+- [ ] `npm run dearbyte -- ask "How did I sleep last night?"` gives numbers that match the Health app.
+- [ ] `npm run dearbyte -- brief --force` writes a brief that compares last night with your normal. Until a few nights are stored, sleep is compared with a default 7 hours.
+- [ ] `npm run dearbyte -- check` either sends nothing or gives a reason you agree with.
 
 **Calendar (macOS)**
-- [ ] `npm run agent -- calendar` lists the same events as the Calendar app on your iPhone, minus what DearByte leaves out on purpose: cancelled events, invites you declined or haven't answered, and subscribed calendars (holidays, birthdays, sports fixtures). If your own events are missing, those calendars are probably "On My iPhone" rather than iCloud.
-- [ ] `npm run agent -- ask "What's on my calendar today?"` answers from it.
+- [ ] `npm run dearbyte -- calendar` lists the same events as the Calendar app on your iPhone, minus what DearByte leaves out on purpose: cancelled events, invites you declined or haven't answered, and subscribed calendars (holidays, birthdays, sports fixtures). If your own events are missing, those calendars are probably "On My iPhone" rather than iCloud.
+- [ ] `npm run dearbyte -- ask "What's on my calendar today?"` answers from it.
 - [ ] After a short night with training on the calendar, `check` names the event in its reason ("hard event").
 
 **Telegram (needs the bot token and chat id)**
-- [ ] `npm run agent -- telegram` sends a test approval, and tapping a button answers it.
+- [ ] `npm run dearbyte -- telegram` sends a test approval, and tapping a button answers it.
 - [ ] With `watch` running, `brief --force` arrives in Telegram with 👍/👎, and the tap shows up in `status`.
 - [ ] A message from another Telegram account to the bot is ignored.
 
 **Watchlist (needs `watchlist.json`)**
-- [ ] `npm run agent -- news` lists what it found and why each item was kept or skipped.
+- [ ] `npm run dearbyte -- news` lists what it found and why each item was kept or skipped.
 - [ ] Running it again right away sends nothing new.
 - [ ] In `chat`, "anything new on Meta?" answers from what was collected, with links.
 
 **MindGo (needs `MINDGO_MCP_URL` and `MINDGO_TOKEN`)**
-- [ ] `npm run agent -- status` says "MindGo connected".
-- [ ] `npm run agent -- fire` says its monthly numbers come from MindGo, and they match MindGo's dashboard averages.
-- [ ] `npm run agent -- ask "How am I doing on money this term?"` names this term's totals and the term it compares pace with.
+- [ ] `npm run dearbyte -- status` says "MindGo connected".
+- [ ] `npm run dearbyte -- fire` says its monthly numbers come from MindGo, and they match MindGo's dashboard averages.
+- [ ] `npm run dearbyte -- ask "How am I doing on money this term?"` names this term's totals and the term it compares pace with.
 - [ ] Revoke the token in MindGo (`npm run access-token -- revoke <email> <id>`); `ask` then explains that MindGo refused the token.
 
 **Wallet on testnet (needs faucet USDC)**
-- [ ] `npm run agent -- wallet` shows the address and a USDC balance.
+- [ ] `npm run dearbyte -- wallet` shows the address and a USDC balance.
 - [ ] Start the seller for real: `SELLER_PAY_TO=<a second address you control> npm run seller`.
 - [ ] In `chat` (with `DEARBYTE_SELLERS=http://127.0.0.1:4021`), ask for the recovery plan. Approve it, and check that the receipt says **paid** and links a Base Sepolia transaction.
 - [ ] Ask for something over `DEARBYTE_MAX_PURCHASE`. It should be refused, with nothing proposed.
 - [ ] Reject a proposal. Nothing should be paid.
 
 **Claude as the brain (optional, needs `ANTHROPIC_API_KEY`)**
-- [ ] `DEARBYTE_BRAIN=anthropic:claude-opus-5-5 npm run agent -- brief --force` works, and its cost shows in `npm run agent:usage`.
+- [ ] `DEARBYTE_BRAIN=anthropic:claude-opus-5-5 npm run dearbyte -- brief --force` works, and its cost shows in `npm run agent:usage`.
 
 ## The FIRE plan
 
@@ -140,12 +140,12 @@ Run these once each part is set up. Each should take a few minutes.
 - **Coast number:** with this much today, you could stop saving and still reach the die-with-zero number by your retirement age.
 - **Earliest retirement age, the most you could spend in retirement, and net worth by age,** plus how much more to save when the plan runs short.
 
-Ask what-ifs in the terminal (`npm run agent -- fire --retire 45 --return 5`) or in chat ("what if I retire at 45?"). The agent calls `fire_plan` with the change, and code does the math. It talks about budgets, saving and what the numbers mean, never specific investments.
+Ask what-ifs in the terminal (`npm run dearbyte -- fire --retire 45 --return 5`) or in chat ("what if I retire at 45?"). The agent calls `fire_plan` with the change, and code does the math. It talks about budgets, saving and what the numbers mean, never specific investments.
 
 ## Code layout
 
 ```text
-src/agent-cli.ts        the npm run agent commands
+src/agent-cli.ts        the npm run dearbyte -- <command> commands (src/main.ts routes them)
 src/agent/              agent loop, validated tools, model tiers, usage log, approvals, scheduled brief and alerts
 src/health/             bridge MCP client, daily snapshots and baseline, caution rules
 src/calendar/           the Mac's calendars (EventKit helper in native/calendar), the get_calendar tool, the hard-event rule

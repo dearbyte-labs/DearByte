@@ -56,7 +56,7 @@ export function originOf(url: string): string | null {
 export function resolveWallet(env: Record<string, string | undefined>): WalletConfig | { problem: string } | null {
   const key = env.DEARBYTE_WALLET_KEY?.trim();
   if (!key) return null;
-  if (!/^0x[0-9a-fA-F]{64}$/.test(key)) return { problem: "DEARBYTE_WALLET_KEY should be 0x followed by 64 hex characters (npm run agent -- wallet new makes one)" };
+  if (!/^0x[0-9a-fA-F]{64}$/.test(key)) return { problem: "DEARBYTE_WALLET_KEY should be 0x followed by 64 hex characters (npm run dearbyte -- wallet new makes one)" };
   const sellers: string[] = [];
   for (const s of (env.DEARBYTE_SELLERS ?? "").split(",").map((s) => s.trim()).filter(Boolean)) {
     const origin = originOf(s);

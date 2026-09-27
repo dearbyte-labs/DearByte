@@ -31,7 +31,7 @@ export function watchlistTools(store: Pick<Store, "recentWatchItems">, watchlist
           verdict: i.status === "sent" ? "told the user" : i.status === "relevant" ? "worth telling, not sent yet" : i.status === "skipped" ? "not worth a message" : "not screened",
           ...(i.reason ? { why: i.reason } : {}),
         }));
-        return JSON.stringify(items.length ? { status: "ok", items } : { status: "empty", message: `Nothing collected in the last ${DAYS} days. Has the watchlist been checked (npm run agent -- news)?` });
+        return JSON.stringify(items.length ? { status: "ok", items } : { status: "empty", message: `Nothing collected in the last ${DAYS} days. Has the watchlist been checked (npm run dearbyte -- news)?` });
       },
     }),
   ];

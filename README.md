@@ -52,7 +52,7 @@ DearByte is early and built in the open. All of Phase 1 is on `master`, with 289
 
 **Phase 1: the first demo** (target: 2026-09-28)
 - [x] Agent core: tool loop, Claude/DeepSeek tiers, spending caps, usage log, English persona
-- [x] Apple Watch and Apple Health data through [dearbyte-bridge](https://github.com/dearbyte-labs/dearbyte-bridge), and `npm run agent`
+- [x] Apple Watch and Apple Health data through [dearbyte-bridge](https://github.com/dearbyte-labs/dearbyte-bridge), and `npm run dearbyte -- ask`
 - [x] Daily health snapshots, so DearByte learns your normal sleep, resting heart rate and HRV
 - [x] Caution alerts and a morning brief, with quiet hours and a daily limit (calendar comes in Phase 2)
 - [x] Telegram for alerts, and Approve/Reject buttons
@@ -95,19 +95,58 @@ npm run agent:usage
 
 `agent:smoke` asks "How did I sleep, and should I still do leg day tonight?" against two sample tools and prints each step, the tool calls and the answer. `agent:usage` shows what that cost.
 
-Then use the agent itself (`npm run agent` lists every command):
+Then use the agent itself (`npm run dearbyte -- help` lists every command):
 
 ```bash
-npm run agent -- status     # which models, tools and limits are active
-npm run agent -- chat       # talk to it; tools appear as you set them up
-npm run agent -- watch      # always on: morning brief, caution alerts, news
-npm run agent -- wechat     # talk to it in WeChat, in Mandarin (see the companion section for setup)
-npm run agent -- imessage -m   # talk to it in iMessage: -m Mandarin, -e English (see below)
+npm run dearbyte -- status     # which models, tools and limits are active
+npm run dearbyte -- chat       # talk to it; tools appear as you set them up
+npm run dearbyte -- watch      # always on: morning brief, caution alerts, news
+npm run dearbyte -- wechat     # talk to it in WeChat, in Mandarin (see the companion section for setup)
+npm run dearbyte -- imessage -m   # talk to it in iMessage: -m Mandarin, -e English (see below)
 ```
+
+The full list is under [Commands](#commands).
 
 To see all of it at once, `npm run demo` runs the three parts in order: a morning brief, a news check and an approved purchase. It uses your real setup where you have one, and sample data where you don't.
 
 The [agent guide](docs/agent-guide.md) walks through setting up health, Telegram, the watchlist and the wallet in order, and has a checklist for testing each one live.
+
+## Commands
+
+Everything runs through `npm run dearbyte`. With a command it runs the agent; with no command, or only flags, it runs 小拜 the companion in WeChat. (`npm run agent -- <command>` still works as an old name for the agent.)
+
+| Command | What it does |
+| --- | --- |
+| `npm run dearbyte -- help` | Lists every command |
+| `npm run dearbyte -- status` | Which models, tools and limits are active, and this week's spending |
+| `npm run dearbyte -- ask "question"` | Answers one question and exits |
+| `npm run dearbyte -- chat` | Talk to it in the terminal until `/quit` |
+| `npm run dearbyte -- watch` | Always on: morning brief at 07:30, caution checks every 15 minutes, news hourly, Telegram buttons |
+| `npm run dearbyte -- brief [--force]` | Sends the morning brief now |
+| `npm run dearbyte -- check` | Runs the caution rules once |
+| `npm run dearbyte -- news` | Checks the company watchlist now |
+| `npm run dearbyte -- alerts` | Recent briefs and alerts it sent on its own |
+| `npm run dearbyte -- calendar` | Allows calendar access, and lists the next 48 hours |
+| `npm run dearbyte -- telegram` | Sets up Telegram, or tests it with a sample approval |
+| `npm run dearbyte -- fire [--retire N --spend N --save N …]` | Your road to financial independence, with what-ifs |
+| `npm run dearbyte -- wallet [new]` | The testnet wallet: address, balance, limits (`new` creates one) |
+| `npm run dearbyte -- approvals` | Requests waiting for your yes |
+| `npm run dearbyte -- approve N` / `reject N` | Answers request N in the terminal |
+| `npm run dearbyte -- wechat [--draft]` | Talk to it in WeChat, in Mandarin as 小拜 (`--draft`: show replies, never send) |
+| `npm run dearbyte -- imessage -m\|-e [--to <handle>] [--draft]` | Talk to it in iMessage: `-m` Mandarin as 小拜, `-e` English (the default) |
+
+小拜 the companion (no command):
+
+| Command | What it does |
+| --- | --- |
+| `npm run dearbyte` | Answers the bound WeChat chat |
+| `npm run dearbyte -- --draft` | Shows replies in the terminal, never sends |
+| `npm run dearbyte -- --chat <name>` | First run: binds the WeChat chat to answer |
+| `npm run dearbyte -- --film` | A clean log to show on camera |
+| `npm run dearbyte -- --memory on\|off` | Long-term memory on or off (saved) |
+| `npm run dearbyte -- --proactive on\|off` | Whether 小拜 writes first (saved) |
+
+Other scripts: `npm run demo` (the three-part demo), `npm run seller` (the testnet seller for purchases), `npm run personas` (the persona packs), `npm run agent:smoke` and `npm run agent:usage` (a first test run and what it cost), `npm test`.
 
 ## Configuration
 
@@ -129,12 +168,12 @@ All settings go in `.env`.
 | `DEARBYTE_FINANCE` | `finance.json` | Where your FIRE profile is (copy `finance.example.json`) |
 | `MINDGO_MCP_URL` | — | MindGo's read-only MCP endpoint, e.g. `https://<your-mindgo-api>/mcp` |
 | `MINDGO_TOKEN` | — | A MindGo access token (`mgo_…`, from `npm run access-token` in MindGo). Secret, but read-only and revocable |
-| `DEARBYTE_CALENDAR` | on (macOS) | `off` stops DearByte reading your calendar. `npm run agent -- calendar` asks macOS for access and lists the next 48 hours |
-| `DEARBYTE_WALLET_KEY` | — | The testnet wallet's key; `npm run agent -- wallet new` creates it and writes it here |
+| `DEARBYTE_CALENDAR` | on (macOS) | `off` stops DearByte reading your calendar. `npm run dearbyte -- calendar` asks macOS for access and lists the next 48 hours |
+| `DEARBYTE_WALLET_KEY` | — | The testnet wallet's key; `npm run dearbyte -- wallet new` creates it and writes it here |
 | `DEARBYTE_SELLERS` | — | Comma-separated seller addresses the wallet may buy from, like `http://127.0.0.1:4021` |
 | `DEARBYTE_MAX_PURCHASE` | `0.25` | USD limit per purchase |
 | `DEARBYTE_MAX_DAY` | `1` | USD limit per day |
-| `TELEGRAM_CHAT_ID` | — | Your chat with the bot; `npm run agent -- telegram` finds it. Only this chat can use the buttons |
+| `TELEGRAM_CHAT_ID` | — | Your chat with the bot; `npm run dearbyte -- telegram` finds it. Only this chat can use the buttons |
 | `DEARBYTE_WECHAT_PERSONA` | `xiaobai` | The persona the agent uses in Mandarin: WeChat, and iMessage with `-m` |
 | `DEARBYTE_IMESSAGE_TO` | none | The one person the agent answers in iMessage: a phone number or Apple ID email (or pass `--to`) |
 
@@ -145,7 +184,7 @@ A model without a known price is refused, so the spending caps always work.
 Copy `watchlist.example.json` to `watchlist.json` (ignored by Git) and edit it. `interests` says, in your words, what's worth a message; each company has its newsroom feeds and, optionally, its SEC number (`cik`).
 
 ```bash
-npm run agent -- news    # check once; `watch` checks every hour
+npm run dearbyte -- news    # check once; `watch` checks every hour
 ```
 
 Only official sources are read: each company's newsroom feed and its SEC filings (8-K, 10-Q, 10-K and similar; not insider trades). Each check:
@@ -160,30 +199,30 @@ News follows the same quiet hours as health, with at most 3 news messages a day.
 DearByte can buy things for you from sellers you approve, over [x402](https://www.x402.org) (HTTP 402 "Payment Required", paid in USDC). Phase 1 is **testnet only**: Base Sepolia and test USDC, never real money.
 
 ```bash
-npm run agent -- wallet new          # creates a key, writes it to .env, prints the address
+npm run dearbyte -- wallet new          # creates a key, writes it to .env, prints the address
 # get free test USDC at https://faucet.circle.com (network: Base Sepolia)
 npm run seller -- --dev              # an example seller on http://127.0.0.1:4021
-DEARBYTE_SELLERS=http://127.0.0.1:4021 npm run agent -- chat
+DEARBYTE_SELLERS=http://127.0.0.1:4021 npm run dearbyte -- chat
 ```
 
 1. **You ask, it proposes.** For example: "I slept 5 hours; get me the recovery plan at http://127.0.0.1:4021/recovery-plan." The model can only call `propose_purchase`. Code then:
    - asks the seller its price (the 402 answer);
    - checks the seller allowlist and the per-purchase and daily caps;
    - sends you an approval request.
-2. **You approve** with the button in Telegram, `/approve N` in chat, or `npm run agent -- approve N`. You always see the request as code wrote it (price, seller, recipient first), and in the terminal you confirm with "yes". At most 3 requests wait at once, and each expires after 15 minutes.
-3. **It pays, and you get a receipt.** Code asks for a fresh quote and refuses if the recipient changed or the price went up. It then reserves the amount against the daily limit, signs a transfer for exactly the approved amount (valid for at most 5 minutes), gets the resource, and keeps the receipt with its transaction link. If a signed payment goes out but no transaction comes back, the receipt says "unconfirmed" and the amount still counts toward the limit. `npm run agent -- wallet` shows the balance, limits and recent purchases.
+2. **You approve** with the button in Telegram, `/approve N` in chat, or `npm run dearbyte -- approve N`. You always see the request as code wrote it (price, seller, recipient first), and in the terminal you confirm with "yes". At most 3 requests wait at once, and each expires after 15 minutes.
+3. **It pays, and you get a receipt.** Code asks for a fresh quote and refuses if the recipient changed or the price went up. It then reserves the amount against the daily limit, signs a transfer for exactly the approved amount (valid for at most 5 minutes), gets the resource, and keeps the receipt with its transaction link. If a signed payment goes out but no transaction comes back, the receipt says "unconfirmed" and the amount still counts toward the limit. `npm run dearbyte -- wallet` shows the balance, limits and recent purchases.
 
 The example seller's `--dev` mode checks the signature without touching the chain, so you can demo the whole flow before the faucet. Without `--dev` (and with `SELLER_PAY_TO` set), payments settle on Base Sepolia through the x402.org facilitator. The seller moves to its own repo as the start of the seller SDK.
 
 ### Telegram
 
-Terminal first; Telegram is where DearByte reaches you when you're away from it. It sends briefs and alerts, each with 👍 Useful / 👎 Not useful buttons (the ratings show up in `npm run agent -- status`, so alert precision is measured, not guessed), and anything that needs your yes comes with ✅ Approve / ❌ Reject.
+Terminal first; Telegram is where DearByte reaches you when you're away from it. It sends briefs and alerts, each with 👍 Useful / 👎 Not useful buttons (the ratings show up in `npm run dearbyte -- status`, so alert precision is measured, not guessed), and anything that needs your yes comes with ✅ Approve / ❌ Reject.
 
 1. Message @BotFather in Telegram, send `/newbot`, and put the token in `.env` as `TELEGRAM_BOT_TOKEN`.
-2. Send your bot any message, then run `npm run agent -- telegram`. It prints your chat id; add it as `TELEGRAM_CHAT_ID`.
-3. Run `npm run agent -- telegram` again. It sends a test approval; tap a button to check it works.
+2. Send your bot any message, then run `npm run dearbyte -- telegram`. It prints your chat id; add it as `TELEGRAM_CHAT_ID`.
+3. Run `npm run dearbyte -- telegram` again. It sends a test approval; tap a button to check it works.
 
-Button taps are handled while `npm run agent -- watch` runs. Approval requests expire after 15 minutes, each is decided once, and messages or taps from any other chat are ignored.
+Button taps are handled while `npm run dearbyte -- watch` runs. Approval requests expire after 15 minutes, each is decided once, and messages or taps from any other chat are ignored.
 
 ## How it works
 
@@ -232,11 +271,11 @@ npm run companion -- --fake  # no model calls; replies labelled fake
 
 The WeChat connection drives WeChat for Mac through macOS Accessibility. That isn't allowed by Tencent's terms and the account may be restricted, so use a test account, never your main one. Setup is in the [Chinese README](README.zh-CN.md) and the [operations guide](docs/guide.en.md).
 
-The same WeChat setup can carry the agent instead of the companion: `npm run agent -- wechat` (`--draft` to show replies without sending). It answers in Mandarin as 小拜, with every tool the agent has: health, calendar, money, news and the wallet. A purchase request is written by code into the chat; a short yes (`好`, `可以`, `买吧`, `ok`) approves it and a short no (`算了`, `不要`) rejects it. Code matches the whole message against fixed lists, so the model can't approve anything; `/approve N` and `/reject N` work too. Only requests shown in that chat can be approved there; while `watch` runs, Telegram's buttons work too. `--draft` never approves anything. It shares the companion's lock, so only one of them answers the chat at a time.
+The same WeChat setup can carry the agent instead of the companion: `npm run dearbyte -- wechat` (`--draft` to show replies without sending). It answers in Mandarin as 小拜, with every tool the agent has: health, calendar, money, news and the wallet. A purchase request is written by code into the chat; a short yes (`好`, `可以`, `买吧`, `ok`) approves it and a short no (`算了`, `不要`) rejects it. Code matches the whole message against fixed lists, so the model can't approve anything; `/approve N` and `/reject N` work too. Only requests shown in that chat can be approved there; while `watch` runs, Telegram's buttons work too. `--draft` never approves anything. It shares the companion's lock, so only one of them answers the chat at a time.
 
 ### iMessage
 
-`npm run agent -- imessage -m` answers in Mandarin as 小拜; `-e` (the default) answers in English as `DEARBYTE_PERSONA`. It uses the Mac's Messages app: it reads new texts from the Messages database and sends replies through AppleScript. It answers one person, set by `DEARBYTE_IMESSAGE_TO` or `--to`, and only in your one-to-one chat with them; texts already there when it starts are never answered. Approvals work as in WeChat: code writes the request, and a short "yes" or "no" (or 好 / 算了) answers it. `--draft` shows replies in the terminal and sends nothing.
+`npm run dearbyte -- imessage -m` answers in Mandarin as 小拜; `-e` (the default) answers in English as `DEARBYTE_PERSONA`. It uses the Mac's Messages app: it reads new texts from the Messages database and sends replies through AppleScript. It answers one person, set by `DEARBYTE_IMESSAGE_TO` or `--to`, and only in your one-to-one chat with them; texts already there when it starts are never answered. Approvals work as in WeChat: code writes the request, and a short "yes" or "no" (or 好 / 算了) answers it. `--draft` shows replies in the terminal and sends nothing.
 
 Setup, once:
 
