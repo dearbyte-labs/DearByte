@@ -56,6 +56,12 @@ flowchart LR
   Sched --> TG
 ```
 
+For a detailed version, open [architecture.drawio](architecture.drawio) in
+[diagrams.net](https://app.diagrams.net), the draw.io desktop app, or the
+VS Code draw.io extension. It shows every layer of DearByte, the two MCP
+servers it reads (MindGo for money, dearbyte-bridge for Apple Watch health
+data), and how each one authenticates.
+
 There are two products in one repository (the companion's pipeline is in
 [how-it-works.md](how-it-works.md)). **The agent**, `npm run agent`, is
 everything above. **The companion** is 小拜, a Chinese chat companion
