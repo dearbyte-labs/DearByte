@@ -237,7 +237,7 @@ The same WeChat setup can carry the agent instead of the companion: `npm run age
 | Document | Contents |
 | --- | --- |
 | [Architecture](docs/architecture.md) | How DearByte is put together, the rules it follows, and what to improve next |
-| [Architecture diagram](docs/architecture.drawio) | draw.io diagram of DearByte and the MindGo and Apple Watch MCP servers; open in [diagrams.net](https://app.diagrams.net) |
+| [Architecture diagram](docs/architecture.drawio.png) | DearByte and the MindGo and Apple Watch MCP servers in one picture; the PNG opens for editing in [diagrams.net](https://app.diagrams.net) |
 | [Persona packs](docs/personas.md) | Choosing a persona, writing your own, and what CI checks |
 | [Agent guide](docs/agent-guide.md) | Setting up health, Telegram, the watchlist and the wallet; every command; a live test checklist |
 | [Operations guide](docs/guide.en.md) | 小拜 companion: commands, proactive messaging, WeChat, configuration, repository layout |

@@ -56,11 +56,17 @@ flowchart LR
   Sched --> TG
 ```
 
-For a detailed version, open [architecture.drawio](architecture.drawio) in
+The detailed version shows every layer of DearByte, the two MCP servers it
+reads (MindGo for money, dearbyte-bridge for Apple Watch health data), and
+how each one authenticates:
+
+![DearByte architecture: DearByte's layers, the MindGo MCP server and the Apple Watch MCP server](architecture.drawio.png)
+
+The PNG carries its own diagram, so to change it, open
+[architecture.drawio.png](architecture.drawio.png) in
 [diagrams.net](https://app.diagrams.net), the draw.io desktop app, or the
-VS Code draw.io extension. It shows every layer of DearByte, the two MCP
-servers it reads (MindGo for money, dearbyte-bridge for Apple Watch health
-data), and how each one authenticates.
+VS Code draw.io extension, then export it back as PNG with "Include a copy of
+my diagram" checked.
 
 There are two products in one repository (the companion's pipeline is in
 [how-it-works.md](how-it-works.md)). **The agent**, `npm run agent`, is
