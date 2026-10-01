@@ -21,7 +21,7 @@
     "personas": "tsx tools/personas.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "0.128.0",
+    "@anthropic-ai/sdk": "0.129.0",
     "@x402/core": "2.27.0",
     "@x402/evm": "2.27.0",
     "viem": "2.56.9",
