@@ -24,7 +24,7 @@
     "@anthropic-ai/sdk": "0.128.0",
     "@x402/core": "2.27.0",
     "@x402/evm": "2.27.0",
-    "viem": "2.56.9",
+    "viem": "2.57.3",
     "zod": "4.6.5"
   },
   "devDependencies": {
