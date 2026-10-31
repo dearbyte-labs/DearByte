@@ -6,6 +6,8 @@
 
 <p align="center">A self-hosted personal agent that knows how you slept, watches what you care about, and only spends within limits you approve.</p>
 
+<p align="center"><a href="https://rickmingyuliu.com/blog/building-dearbyte">Read the write-up</a>: how it works, what broke along the way, and what a month of personal-agent launches changed.</p>
+
 <p align="center">
 <a href="https://github.com/dearbyte-labs/DearByte/stargazers"><img src="https://img.shields.io/github/stars/dearbyte-labs/DearByte?style=flat" alt="GitHub Stars"></a>
 <img src="https://img.shields.io/badge/status-experimental-orange" alt="Status: experimental">
