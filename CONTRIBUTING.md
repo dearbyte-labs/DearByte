@@ -1,5 +1,7 @@
 # Contributing
 
+> **No longer maintained — November 17, 2026.** This repository is no longer accepting contributions. The guide below is retained as historical documentation and for anyone maintaining a fork under the MIT license.
+
 Thanks for helping with DearByte. It drives a real WeChat account on a real Mac, so a few rules matter more than usual.
 
 ## Before you open a PR

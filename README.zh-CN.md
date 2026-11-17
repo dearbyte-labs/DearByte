@@ -4,13 +4,15 @@
 
 <h1 align="center">DearByte · 小拜</h1>
 
+> **已停止维护 — 2026 年 11 月 17 日。** 项目开发已结束，代码和文档作为个人智能体实验的存档保留，不再计划新增功能、修复问题或提供安全更新。我的重心已转向可供现有智能体使用的专用工具和集成。项目经历与经验总结见[文章](https://rickmingyuliu.com/blog/building-dearbyte)。以下内容记录开发时的功能与用法。
+
 <p align="center"><strong>有点嘴硬，但会把你的话放在心上。</strong></p>
 
 <p align="center">一个有自己脾气的 AI 聊天伙伴。<br>记住你说过的小事，偶尔主动问候，也尊重你想安静的时候。</p>
 
 <p align="center">
 <a href="https://github.com/dearbyte-labs/DearByte/stargazers"><img src="https://img.shields.io/github/stars/dearbyte-labs/DearByte?style=flat" alt="GitHub Stars"></a>
-<img src="https://img.shields.io/badge/status-experimental-orange" alt="实验原型">
+<img src="https://img.shields.io/badge/status-unmaintained-lightgrey" alt="已停止维护">
 <img src="https://img.shields.io/badge/Node.js-26%2B-339933" alt="Node.js 26+">
 <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT"></a>
 </p>
@@ -21,7 +23,7 @@
 
 DearByte 目前是一个可以在终端运行、也可以实验性接入微信的 AI 陪伴原型。文档提供简体中文与英文两个版本；**当前角色和对话设计以中文为主**。
 
-如果你也喜欢这样的聊天伙伴，欢迎点个 ⭐ Star，回来看看小拜的新变化。
+代码作为学习参考保留，欢迎按 MIT 许可证 fork 和改编。
 
 ## 和小拜聊点什么
 
@@ -123,12 +125,14 @@ DearByte 的个人助理部分（Apple Watch 健康数据、早间简报与提�
 
 ## 参与开发
 
+本仓库已停止接收贡献。以下检查命令供维护 fork 时参考：
+
 ```bash
 npm test
 npm run typecheck
 ```
 
-欢迎通过 [Issues](https://github.com/dearbyte-labs/DearByte/issues) 反馈问题、讨论想法，或提交改进。复现问题时请去掉聊天中的个人信息和 API 密钥。
+现有 Issues 和 PR 作为历史记录保留。分享复现信息时请去掉聊天中的个人信息和 API 密钥。
 
 | 文档 | 内容 |
 | --- | --- |
@@ -136,8 +140,8 @@ npm run typecheck
 | [助理指南（英文）](docs/agent-guide.md) | 个人助理的配置步骤、全部命令和实机测试清单 |
 | [完整运行参考（英文）](docs/guide.en.md) | 全部命令、主动消息规则、通知、配置和目录结构 |
 | [工作原理（英文）](docs/how-it-works.md) | 回复生成、记忆和存储 |
-| [路线图（英文）](README.md#roadmap) | 接下来要做的事 |
-| [参与贡献（英文）](CONTRIBUTING.md) | 提 PR 前请先看；安全问题见 [SECURITY.md](SECURITY.md) |
+| [路线图（英文）](README.md#roadmap) | 历史计划，已不再推进 |
+| [参与贡献（英文）](CONTRIBUTING.md) | 历史贡献指南；维护状态见 [SECURITY.md](SECURITY.md) |
 
 ## 致谢
 
