@@ -2,6 +2,8 @@
 
 <h1 align="center">DearByte</h1>
 
+> **No longer maintained — November 17, 2026.** Development has concluded. This repository is preserved as an archive of an experiment in self-hosted personal agents, health and calendar integrations, and approval-based payments. No further features, bug fixes, or security updates are planned. My focus has shifted to specialized tools and integrations that existing agents can use. See [the write-up](https://rickmingyuliu.com/blog/building-dearbyte) for the story and lessons.
+
 <p align="center"><strong>A little attitude. A lot of care.</strong></p>
 
 <p align="center">A self-hosted personal agent that knows how you slept, watches what you care about, and only spends within limits you approve.</p>
@@ -10,7 +12,7 @@
 
 <p align="center">
 <a href="https://github.com/dearbyte-labs/DearByte/stargazers"><img src="https://img.shields.io/github/stars/dearbyte-labs/DearByte?style=flat" alt="GitHub Stars"></a>
-<img src="https://img.shields.io/badge/status-experimental-orange" alt="Status: experimental">
+<img src="https://img.shields.io/badge/status-unmaintained-lightgrey" alt="Status: unmaintained">
 <img src="https://img.shields.io/badge/Node.js-26%2B-339933" alt="Node.js 26+">
 <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT"></a>
 </p>
@@ -34,7 +36,7 @@ Most AI assistants run on someone else's servers, and none of them know how you 
 
 ## Status
 
-DearByte is early and built in the open. All of Phase 1 is on `master`, with 289 offline tests. What works today and what's coming:
+Development has ended. The table below records the implementation status during development; references to next steps are historical, not planned work.
 
 | Part | Status |
 | --- | --- |
@@ -51,6 +53,8 @@ DearByte is early and built in the open. All of Phase 1 is on `master`, with 289
 | Testnet wallet: the agent proposes a paid service, you approve, it pays within a cap, and you get a receipt | **Works** with x402 on Base Sepolia, tested live against the example seller in dev mode; an on-chain payment needs test USDC from the faucet |
 
 ## Roadmap
+
+**Historical roadmap — no longer being pursued.** These were the original plans; they are retained for context, not as commitments to future development.
 
 **Phase 1: the first demo** (target: 2026-09-28)
 - [x] Agent core: tool loop, Claude/DeepSeek tiers, spending caps, usage log, English persona
@@ -219,7 +223,7 @@ you ─ CLI / Telegram ─┐
 
 `default` is DearByte in English: warm, a little cheeky, and never a partner. It gives US crisis resources (988, 911) if anyone is in danger. `xiaobai` is an opt-in Chinese persona with the tsundere 小拜 tone and China's crisis numbers. Both share the same rules: facts only from tools, missing data reported as unknown, and plain wording for anything involving money.
 
-Personas are packs, one folder each in `personas/` (a manifest, the persona and optional examples), and anyone can add one in a PR. A pack changes how DearByte talks, never what it may do: the rules always come after it and win, CI rejects a pack that tries to override them, and every merged pack is recorded in [personas/INDEX.md](personas/INDEX.md) with its authors and version. See [writing a persona](docs/personas.md).
+Personas are packs, one folder each in `personas/` (a manifest, the persona and optional examples), and forks can add their own. A pack changes how DearByte talks, never what it may do: the rules always come after it and win, CI rejects a pack that tries to override them, and every merged pack is recorded in [personas/INDEX.md](personas/INDEX.md) with its authors and version. See [writing a persona](docs/personas.md).
 
 ## The Chinese companion: Xiaobai
 
@@ -244,18 +248,20 @@ The same WeChat setup can carry the agent instead of the companion: `npm run age
 | [Agent guide](docs/agent-guide.md) | Setting up health, Telegram, the watchlist and the wallet; every command; a live test checklist |
 | [Operations guide](docs/guide.en.md) | 小拜 companion: commands, proactive messaging, WeChat, configuration, repository layout |
 | [How it works](docs/how-it-works.md) | The companion's reply pipeline, memory and storage |
-| [Roadmap](#roadmap) | What's next: the first demo, daily use, then hosting and the marketplace |
+| [Roadmap](#roadmap) | Historical plans for the demo, daily use, hosting and marketplace |
 | [中文说明](README.zh-CN.md) | 小拜的中文介绍和快速开始 |
-| [Contributing](CONTRIBUTING.md) | Read before opening a PR; report security issues through [SECURITY.md](SECURITY.md) |
+| [Contributing](CONTRIBUTING.md) | Historical contribution guide; maintenance status in [SECURITY.md](SECURITY.md) |
 
 ## Contributing
+
+This repository is no longer accepting contributions. You are welcome to fork and adapt the code under the MIT license. These checks remain available for anyone working on a fork:
 
 ```bash
 npm test
 npm run typecheck
 ```
 
-Use [Issues](https://github.com/dearbyte-labs/DearByte/issues) to report problems or discuss ideas. Remove personal data, health data and API keys from reproductions.
+The existing issues and pull requests remain as historical records. Remove personal data, health data and API keys from any reproductions you share.
 
 ## Acknowledgments
 
